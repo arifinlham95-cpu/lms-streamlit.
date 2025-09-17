@@ -1,165 +1,235 @@
 import streamlit as st
 import sqlite3
-import pandas as pd
-import hashlib
+import datetime
 
-# === Fungsi bantu ===
-def make_hash(password):
-    return hashlib.sha256(str.encode(password)).hexdigest()
-
-def check_hash(password, hashed):
-    return make_hash(password) == hashed
-
-# === Koneksi database ===
-conn = sqlite3.connect("lms.db")
+# =========================
+# DATABASE
+# =========================
+conn = sqlite3.connect('lms.db', check_same_thread=False)
 c = conn.cursor()
 
-def create_tables():
-    c.execute("CREATE TABLE IF NOT EXISTS users(id INTEGER PRIMARY KEY, username TEXT, password TEXT, role TEXT)")
-    c.execute("CREATE TABLE IF NOT EXISTS classes(id INTEGER PRIMARY KEY, class_name TEXT, code TEXT, teacher_id INT)")
-    c.execute("CREATE TABLE IF NOT EXISTS enrollments(id INTEGER PRIMARY KEY, user_id INT, class_id INT)")
-    c.execute("CREATE TABLE IF NOT EXISTS materials(id INTEGER PRIMARY KEY, class_id INT, title TEXT, file_path TEXT, video_url TEXT)")
-    conn.commit()
+# Buat tabel jika belum ada
+c.execute('''CREATE TABLE IF NOT EXISTS users (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    username TEXT UNIQUE,
+    password TEXT,
+    role TEXT
+)''')
 
-create_tables()
+c.execute('''CREATE TABLE IF NOT EXISTS classes (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    class_name TEXT,
+    class_code TEXT UNIQUE,
+    teacher_id INTEGER
+)''')
 
-# === UI ===
-st.title("📚 COOK ")
+c.execute('''CREATE TABLE IF NOT EXISTS materials (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    class_id INTEGER,
+    title TEXT,
+    content TEXT,
+    video_url TEXT
+)''')
 
-menu = ["Login", "Register"]
-choice = st.sidebar.selectbox("Menu", menu)
+c.execute('''CREATE TABLE IF NOT EXISTS attendance (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    class_id INTEGER,
+    student_id INTEGER,
+    date TEXT
+)''')
 
-if choice == "Register":
-    st.subheader("Register")
-    username = st.text_input("Username")
-    password = st.text_input("Password", type="password")
-    role = st.selectbox("Role", ["Teacher", "Student"])
-    if st.button("Daftar"):
-        c.execute("INSERT INTO users(username,password,role) VALUES (?,?,?)", (username, make_hash(password), role))
+conn.commit()
+
+# =========================
+# HELPER FUNCTIONS
+# =========================
+def register_user(username, password, role):
+    try:
+        c.execute("INSERT INTO users (username, password, role) VALUES (?, ?, ?)", 
+                  (username, password, role))
         conn.commit()
-        st.success("Akun berhasil dibuat! Silakan login.")
+        return True
+    except:
+        return False
 
-elif choice == "Login":
-    st.subheader("Login")
-    username = st.text_input("Username")
-    password = st.text_input("Password", type="password")
-    if st.button("Masuk"):
-        c.execute("SELECT * FROM users WHERE username=?", (username,))
-        data = c.fetchone()
-        if data and check_hash(password, data[2]):
-            st.success(f"Selamat datang, {username} ({data[3]})")
-            # TODO: Tambahkan dashboard guru/siswa
-        else:
-            st.error("Username/password salah")
- if data[3] == "Teacher":
-    st.subheader("📘 Dashboard Guru")
+def login_user(username, password):
+    c.execute("SELECT * FROM users WHERE username=? AND password=?", (username, password))
+    return c.fetchone()
 
-    # Buat kelas baru
-    with st.expander("Buat Kelas Baru"):
-        class_name = st.text_input("Nama Kelas")
-        class_code = st.text_input("Kode Kelas (unik)")
-        if st.button("Buat Kelas"):
-            c.execute("INSERT INTO classes(class_name, code, teacher_id) VALUES (?,?,?)",
-                      (class_name, class_code, data[0]))
-            conn.commit()
-            st.success(f"Kelas '{class_name}' berhasil dibuat dengan kode: {class_code}")
+def create_class(class_name, class_code, teacher_id):
+    try:
+        c.execute("INSERT INTO classes (class_name, class_code, teacher_id) VALUES (?, ?, ?)", 
+                  (class_name, class_code, teacher_id))
+        conn.commit()
+        return True
+    except:
+        return False
 
-    # Upload materi
-    with st.expander("Upload Materi"):
-        c.execute("SELECT * FROM classes WHERE teacher_id=?", (data[0],))
-        classes = c.fetchall()
-        class_opt = {cls[1]: cls[0] for cls in classes}
-        class_choice = st.selectbox("Pilih Kelas", list(class_opt.keys()))
-        title = st.text_input("Judul Materi")
-        file = st.file_uploader("Upload File (opsional)")
-        video_url = st.text_input("Link Video YouTube (opsional)")
-        if st.button("Simpan Materi"):
-            filepath = None
-            if file:
-                filepath = file.name
-                with open(filepath, "wb") as f:
-                    f.write(file.getbuffer())
-            c.execute("INSERT INTO materials(class_id, title, file_path, video_url) VALUES (?,?,?,?)",
-                      (class_opt[class_choice], title, filepath, video_url))
-            conn.commit()
-            st.success("Materi berhasil ditambahkan")
+def get_class_by_code(class_code):
+    c.execute("SELECT * FROM classes WHERE class_code=?", (class_code,))
+    return c.fetchone()
 
-elif data[3] == "Student":
-    st.subheader("🎓 Dashboard Siswa")
-
-    # Join kelas pakai kode
-    with st.expander("Gabung Kelas"):
-        join_code = st.text_input("Masukkan Kode Kelas")
-        if st.button("Gabung"):
-            c.execute("SELECT * FROM classes WHERE code=?", (join_code,))
-            class_data = c.fetchone()
-            if class_data:
-                c.execute("INSERT INTO enrollments(user_id, class_id) VALUES (?,?)", (data[0], class_data[0]))
-                conn.commit()
-                st.success(f"Berhasil gabung ke kelas {class_data[1]}")
-            else:
-                st.error("Kode kelas tidak ditemukan")
-
-    # Lihat materi
-    with st.expander("Materi Kelas Saya"):
-        c.execute("""SELECT classes.class_name, materials.title, materials.file_path, materials.video_url
-                     FROM enrollments 
-                     JOIN classes ON enrollments.class_id = classes.id
-                     JOIN materials ON classes.id = materials.class_id
-                     WHERE enrollments.user_id=?""", (data[0],))
-        materi = c.fetchall()
-        if materi:
-            for row in materi:
-                st.markdown(f"### 📘 {row[0]} - {row[1]}")
-                if row[2]:
-                    st.download_button("📂 Download Materi", data=open(row[2], "rb"), file_name=row[2])
-                if row[3]:
-                    st.video(row[3])
-        else:
-            st.info("Belum ada materi di kelas Anda")
-
-def create_tables():
-    c.execute("CREATE TABLE IF NOT EXISTS users(id INTEGER PRIMARY KEY, username TEXT, password TEXT, role TEXT)")
-    c.execute("CREATE TABLE IF NOT EXISTS classes(id INTEGER PRIMARY KEY, class_name TEXT, code TEXT, teacher_id INT)")
-    c.execute("CREATE TABLE IF NOT EXISTS enrollments(id INTEGER PRIMARY KEY, user_id INT, class_id INT)")
-    c.execute("CREATE TABLE IF NOT EXISTS materials(id INTEGER PRIMARY KEY, class_id INT, title TEXT, file_path TEXT, video_url TEXT)")
-    c.execute("CREATE TABLE IF NOT EXISTS attendance(id INTEGER PRIMARY KEY, class_id INT, user_id INT, date TEXT)")
+def add_material(class_id, title, content, video_url):
+    c.execute("INSERT INTO materials (class_id, title, content, video_url) VALUES (?, ?, ?, ?)", 
+              (class_id, title, content, video_url))
     conn.commit()
 
-with st.expander("📋 Lihat Daftar Hadir"):
-    c.execute("SELECT * FROM classes WHERE teacher_id=?", (data[0],))
-    classes = c.fetchall()
-    if classes:
-        class_opt = {cls[1]: cls[0] for cls in classes}
-        class_choice = st.selectbox("Pilih Kelas", list(class_opt.keys()))
-        if st.button("Tampilkan Absensi"):
-            c.execute("""SELECT users.username, attendance.date 
-                         FROM attendance 
-                         JOIN users ON attendance.user_id = users.id
-                         WHERE attendance.class_id=?""", (class_opt[class_choice],))
-            rows = c.fetchall()
-            if rows:
-                df = pd.DataFrame(rows, columns=["Nama Siswa", "Tanggal Hadir"])
-                st.dataframe(df)
-            else:
-                st.info("Belum ada data absensi untuk kelas ini.")
+def get_materials(class_id):
+    c.execute("SELECT * FROM materials WHERE class_id=?", (class_id,))
+    return c.fetchall()
 
-with st.expander("📋 Daftar Hadir"):
-    c.execute("""SELECT classes.id, classes.class_name 
-                 FROM enrollments 
-                 JOIN classes ON enrollments.class_id = classes.id
-                 WHERE enrollments.user_id=?""", (data[0],))
-    kelas_saya = c.fetchall()
-    if kelas_saya:
-        class_opt = {cls[1]: cls[0] for cls in kelas_saya}
-        class_choice = st.selectbox("Pilih Kelas", list(class_opt.keys()))
-        if st.button("Saya Hadir Hari Ini"):
-            from datetime import date
-            today = str(date.today())
-            c.execute("INSERT INTO attendance(class_id, user_id, date) VALUES (?,?,?)",
-                      (class_opt[class_choice], data[0], today))
-            conn.commit()
-            st.success(f"Kehadiran dicatat untuk {today}")
+def mark_attendance(class_id, student_id):
+    today = str(datetime.date.today())
+    c.execute("SELECT * FROM attendance WHERE class_id=? AND student_id=? AND date=?", 
+              (class_id, student_id, today))
+    if not c.fetchone():
+        c.execute("INSERT INTO attendance (class_id, student_id, date) VALUES (?, ?, ?)", 
+                  (class_id, student_id, today))
+        conn.commit()
+        return True
+    return False
+
+def get_attendance_report(class_id):
+    c.execute("""SELECT u.username, a.date 
+                 FROM attendance a 
+                 JOIN users u ON a.student_id = u.id 
+                 WHERE class_id=?""", (class_id,))
+    return c.fetchall()
+
+# =========================
+# STREAMLIT APP
+# =========================
+st.set_page_config(page_title="Mini LMS", page_icon="📚")
+
+if "logged_in" not in st.session_state:
+    st.session_state.logged_in = False
+    st.session_state.user = None
+
+st.title("📚 COOK")
+
+# Login & Register
+if not st.session_state.logged_in:
+    menu = st.sidebar.selectbox("Menu", ["Login", "Register"])
+
+    if menu == "Login":
+        st.subheader("🔑 Login")
+        username = st.text_input("Username")
+        password = st.text_input("Password", type="password")
+        if st.button("Login"):
+            user = login_user(username, password)
+            if user:
+                st.session_state.logged_in = True
+                st.session_state.user = user
+                st.success(f"Selamat datang {user[1]} ({user[3]})")
+                st.experimental_rerun()
+            else:
+                st.error("Username atau password salah")
+
+    elif menu == "Register":
+        st.subheader("📝 Register")
+        username = st.text_input("Buat Username")
+        password = st.text_input("Buat Password", type="password")
+        role = st.selectbox("Daftar sebagai", ["Teacher", "Student"])
+        if st.button("Daftar"):
+            if register_user(username, password, role):
+                st.success("Registrasi berhasil! Silakan login.")
+            else:
+                st.error("Username sudah digunakan!")
+
+else:
+    user = st.session_state.user
+    role = user[3]
+
+    st.sidebar.write(f"👤 {user[1]} ({role})")
+    if st.sidebar.button("Logout"):
+        st.session_state.logged_in = False
+        st.session_state.user = None
+        st.experimental_rerun()
+
+    # =========================
+    # Dashboard Guru
+    # =========================
+    if role == "Teacher":
+        st.subheader("👨‍🏫 Dashboard Guru")
+
+        tab1, tab2, tab3 = st.tabs(["📘 Buat Kelas", "📂 Upload Materi", "📋 Laporan Absensi"])
+
+        with tab1:
+            st.write("Buat kelas baru dengan kode unik.")
+            class_name = st.text_input("Nama Kelas")
+            class_code = st.text_input("Kode Kelas")
+            if st.button("Buat Kelas"):
+                if create_class(class_name, class_code, user[0]):
+                    st.success(f"Kelas '{class_name}' berhasil dibuat dengan kode {class_code}")
+                else:
+                    st.error("Kode kelas sudah digunakan!")
+
+        with tab2:
+            st.write("Upload materi pembelajaran")
+            class_code = st.text_input("Masukkan kode kelas untuk upload materi")
+            kelas = get_class_by_code(class_code)
+            if kelas:
+                title = st.text_input("Judul Materi")
+                content = st.text_area("Konten / Catatan Materi")
+                video_url = st.text_input("URL Video (YouTube)")
+                if st.button("Upload Materi"):
+                    add_material(kelas[0], title, content, video_url)
+                    st.success("Materi berhasil diupload!")
+            else:
+                st.info("Masukkan kode kelas valid")
+
+        with tab3:
+            st.write("Laporan Absensi Siswa")
+            class_code = st.text_input("Masukkan kode kelas untuk melihat absensi")
+            kelas = get_class_by_code(class_code)
+            if kelas:
+                data = get_attendance_report(kelas[0])
+                if data:
+                    for row in data:
+                        st.write(f"👩‍🎓 {row[0]} - 📅 {row[1]}")
+                else:
+                    st.info("Belum ada absensi")
+
+    # =========================
+    # Dashboard Siswa
+    # =========================
     else:
-        st.info("Anda belum bergabung di kelas manapun.")
+        st.subheader("👩‍🎓 Dashboard Siswa")
+
+        tab1, tab2, tab3 = st.tabs(["🔑 Join Kelas", "📖 Materi", "✅ Absensi"])
+
+        with tab1:
+            st.write("Masukkan kode kelas untuk bergabung")
+            class_code = st.text_input("Kode Kelas")
+            if st.button("Join"):
+                kelas = get_class_by_code(class_code)
+                if kelas:
+                    st.session_state.current_class = kelas
+                    st.success(f"Berhasil join kelas {kelas[1]}")
+                else:
+                    st.error("Kode kelas tidak ditemukan")
+
+        with tab2:
+            if "current_class" in st.session_state:
+                kelas = st.session_state.current_class
+                st.write(f"Materi untuk kelas: {kelas[1]}")
+                materials = get_materials(kelas[0])
+                for m in materials:
+                    st.markdown(f"### 📘 {m[2]}")
+                    st.write(m[3])
+                    if m[4]:
+                        st.video(m[4])
+            else:
+                st.info("Silakan join kelas dulu")
+
+        with tab3:
+            if "current_class" in st.session_state:
+                kelas = st.session_state.current_class
+                if st.button("Isi Daftar Hadir"):
+                    if mark_attendance(kelas[0], user[0]):
+                        st.success("Absensi berhasil disimpan")
+                    else:
+                        st.warning("Anda sudah absen hari ini")
+            else:
+                st.info("Silakan join kelas dulu")
 
