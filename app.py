@@ -121,7 +121,7 @@ if not st.session_state.logged_in:
                 st.session_state.logged_in = True
                 st.session_state.user = user
                 st.success(f"Selamat datang {user[1]} ({user[3]})")
-                st.experimental_rerun()
+                st.rerun()
             else:
                 st.error("Username atau password salah")
 
@@ -144,7 +144,7 @@ else:
     if st.sidebar.button("Logout"):
         st.session_state.logged_in = False
         st.session_state.user = None
-        st.experimental_rerun()
+        st.rerun()
 
     # =========================
     # Dashboard Guru
@@ -232,4 +232,5 @@ else:
                         st.warning("Anda sudah absen hari ini")
             else:
                 st.info("Silakan join kelas dulu")
+
 
