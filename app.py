@@ -1,6 +1,7 @@
 import streamlit as st
 import sqlite3
 import datetime
+import os
 
 # =========================
 # DATABASE
@@ -38,7 +39,26 @@ c.execute('''CREATE TABLE IF NOT EXISTS attendance (
     date TEXT
 )''')
 
+c.execute('''CREATE TABLE IF NOT EXISTS assignments (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    class_id INTEGER,
+    title TEXT,
+    description TEXT,
+    file_path TEXT
+)''')
+
+c.execute('''CREATE TABLE IF NOT EXISTS submissions (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    assignment_id INTEGER,
+    student_id INTEGER,
+    file_path TEXT,
+    submitted_at TEXT
+)''')
+
 conn.commit()
+
+UPLOAD_DIR = "uploads"
+os.makedirs(UPLOAD_DIR, exist_ok=True)
 
 # =========================
 # HELPER FUNCTIONS
@@ -74,6 +94,15 @@ def add_material(class_id, title, content, video_url):
               (class_id, title, content, video_url))
     conn.commit()
 
+def update_material(material_id, title, content, video_url):
+    c.execute("UPDATE materials SET title=?, content=?, video_url=? WHERE id=?", 
+              (title, content, video_url, material_id))
+    conn.commit()
+
+def delete_material(material_id):
+    c.execute("DELETE FROM materials WHERE id=?", (material_id,))
+    conn.commit()
+
 def get_materials(class_id):
     c.execute("SELECT * FROM materials WHERE class_id=?", (class_id,))
     return c.fetchall()
@@ -96,6 +125,40 @@ def get_attendance_report(class_id):
                  WHERE class_id=?""", (class_id,))
     return c.fetchall()
 
+# --------------------------
+# ASSIGNMENTS (TUGAS)
+# --------------------------
+def add_assignment(class_id, title, description, file_path):
+    c.execute("INSERT INTO assignments (class_id, title, description, file_path) VALUES (?, ?, ?, ?)", 
+              (class_id, title, description, file_path))
+    conn.commit()
+
+def get_assignments(class_id):
+    c.execute("SELECT * FROM assignments WHERE class_id=?", (class_id,))
+    return c.fetchall()
+
+def update_assignment(assignment_id, title, description, file_path):
+    c.execute("UPDATE assignments SET title=?, description=?, file_path=? WHERE id=?", 
+              (title, description, file_path, assignment_id))
+    conn.commit()
+
+def delete_assignment(assignment_id):
+    c.execute("DELETE FROM assignments WHERE id=?", (assignment_id,))
+    conn.commit()
+
+def submit_assignment(assignment_id, student_id, file_path):
+    submitted_at = str(datetime.datetime.now())
+    c.execute("INSERT INTO submissions (assignment_id, student_id, file_path, submitted_at) VALUES (?, ?, ?, ?)", 
+              (assignment_id, student_id, file_path, submitted_at))
+    conn.commit()
+
+def get_submissions(assignment_id):
+    c.execute("""SELECT u.username, s.file_path, s.submitted_at 
+                 FROM submissions s 
+                 JOIN users u ON s.student_id = u.id 
+                 WHERE s.assignment_id=?""", (assignment_id,))
+    return c.fetchall()
+
 # =========================
 # STREAMLIT APP
 # =========================
@@ -105,7 +168,7 @@ if "logged_in" not in st.session_state:
     st.session_state.logged_in = False
     st.session_state.user = None
 
-st.title("📚 COOK")
+st.title("📚 COOK LMS")
 
 # Login & Register
 if not st.session_state.logged_in:
@@ -152,7 +215,7 @@ else:
     if role == "Teacher":
         st.subheader("👨‍🏫 Dashboard Guru")
 
-        tab1, tab2, tab3 = st.tabs(["📘 Buat Kelas", "📂 Upload Materi", "📋 Laporan Absensi"])
+        tab1, tab2, tab3, tab4 = st.tabs(["📘 Buat Kelas", "📂 Materi", "📑 Tugas", "📋 Laporan Absensi"])
 
         with tab1:
             st.write("Buat kelas baru dengan kode unik.")
@@ -165,20 +228,90 @@ else:
                     st.error("Kode kelas sudah digunakan!")
 
         with tab2:
-            st.write("Upload materi pembelajaran")
-            class_code = st.text_input("Masukkan kode kelas untuk upload materi")
+            st.write("Kelola Materi")
+            class_code = st.text_input("Masukkan kode kelas")
             kelas = get_class_by_code(class_code)
             if kelas:
                 title = st.text_input("Judul Materi")
-                content = st.text_area("Konten / Catatan Materi")
+                content = st.text_area("Konten Materi")
                 video_url = st.text_input("URL Video (YouTube)")
                 if st.button("Upload Materi"):
                     add_material(kelas[0], title, content, video_url)
                     st.success("Materi berhasil diupload!")
-            else:
-                st.info("Masukkan kode kelas valid")
+
+                st.write("### 📂 Daftar Materi")
+                for m in get_materials(kelas[0]):
+                    st.markdown(f"**{m[2]}**")
+                    st.write(m[3])
+                    if m[4]:
+                        st.video(m[4])
+
+                    if st.button(f"✏️ Edit Materi {m[0]}"):
+                        new_title = st.text_input("Edit Judul", m[2], key=f"title{m[0]}")
+                        new_content = st.text_area("Edit Konten", m[3], key=f"content{m[0]}")
+                        new_video = st.text_input("Edit Video URL", m[4], key=f"video{m[0]}")
+                        if st.button("Simpan Perubahan", key=f"save{m[0]}"):
+                            update_material(m[0], new_title, new_content, new_video)
+                            st.success("Materi diperbarui!")
+                            st.rerun()
+
+                    if st.button(f"🗑️ Hapus Materi {m[0]}"):
+                        delete_material(m[0])
+                        st.warning("Materi dihapus!")
+                        st.rerun()
 
         with tab3:
+            st.write("Kelola Tugas")
+            class_code = st.text_input("Masukkan kode kelas (Tugas)")
+            kelas = get_class_by_code(class_code)
+            if kelas:
+                title = st.text_input("Judul Tugas")
+                description = st.text_area("Deskripsi Tugas")
+                file = st.file_uploader("Upload File Tugas", type=["pdf", "docx", "txt"])
+                if st.button("Upload Tugas"):
+                    file_path = None
+                    if file:
+                        file_path = os.path.join(UPLOAD_DIR, file.name)
+                        with open(file_path, "wb") as f:
+                            f.write(file.getbuffer())
+                    add_assignment(kelas[0], title, description, file_path)
+                    st.success("Tugas berhasil diupload!")
+
+                st.write("### 📂 Daftar Tugas")
+                for a in get_assignments(kelas[0]):
+                    st.markdown(f"**{a[1]}** - {a[2]}")
+                    if a[3]:
+                        st.download_button("📥 Download Tugas", open(a[4], "rb"), file_name=os.path.basename(a[4]))
+
+                    if st.button(f"✏️ Edit Tugas {a[0]}"):
+                        new_title = st.text_input("Edit Judul", a[1], key=f"atitle{a[0]}")
+                        new_desc = st.text_area("Edit Deskripsi", a[2], key=f"adesc{a[0]}")
+                        new_file = st.file_uploader("Upload File Baru", type=["pdf", "docx", "txt"], key=f"afile{a[0]}")
+                        new_file_path = a[4]
+                        if new_file:
+                            new_file_path = os.path.join(UPLOAD_DIR, new_file.name)
+                            with open(new_file_path, "wb") as f:
+                                f.write(new_file.getbuffer())
+                        if st.button("Simpan Perubahan", key=f"asave{a[0]}"):
+                            update_assignment(a[0], new_title, new_desc, new_file_path)
+                            st.success("Tugas diperbarui!")
+                            st.rerun()
+
+                    if st.button(f"🗑️ Hapus Tugas {a[0]}"):
+                        delete_assignment(a[0])
+                        st.warning("Tugas dihapus!")
+                        st.rerun()
+
+                    st.write("### 📥 Jawaban Siswa")
+                    subs = get_submissions(a[0])
+                    if subs:
+                        for s in subs:
+                            st.write(f"👩‍🎓 {s[0]} - {s[2]}")
+                            st.download_button("Download Jawaban", open(s[1], "rb"), file_name=os.path.basename(s[1]), key=f"dl{s[1]}")
+                    else:
+                        st.info("Belum ada jawaban")
+
+        with tab4:
             st.write("Laporan Absensi Siswa")
             class_code = st.text_input("Masukkan kode kelas untuk melihat absensi")
             kelas = get_class_by_code(class_code)
@@ -196,7 +329,7 @@ else:
     else:
         st.subheader("👩‍🎓 Dashboard Siswa")
 
-        tab1, tab2, tab3 = st.tabs(["🔑 Join Kelas", "📖 Materi", "✅ Absensi"])
+        tab1, tab2, tab3, tab4 = st.tabs(["🔑 Join Kelas", "📖 Materi", "✅ Absensi", "📝 Tugas"])
 
         with tab1:
             st.write("Masukkan kode kelas untuk bergabung")
@@ -233,4 +366,22 @@ else:
             else:
                 st.info("Silakan join kelas dulu")
 
+        with tab4:
+            if "current_class" in st.session_state:
+                kelas = st.session_state.current_class
+                st.write(f"Tugas untuk kelas: {kelas[1]}")
+                for a in get_assignments(kelas[0]):
+                    st.markdown(f"### 📑 {a[1]}")
+                    st.write(a[2])
+                    if a[4]:
+                        st.download_button("📥 Download Tugas", open(a[4], "rb"), file_name=os.path.basename(a[4]), key=f"dlstu{a[0]}")
 
+                    uploaded = st.file_uploader("Upload Jawaban", type=["pdf", "docx", "txt"], key=f"jawaban{a[0]}")
+                    if uploaded and st.button(f"Kumpulkan Jawaban {a[0]}"):
+                        file_path = os.path.join(UPLOAD_DIR, f"{user[1]}_{uploaded.name}")
+                        with open(file_path, "wb") as f:
+                            f.write(uploaded.getbuffer())
+                        submit_assignment(a[0], user[0], file_path)
+                        st.success("Jawaban berhasil dikumpulkan!")
+            else:
+                st.info("Silakan join kelas dulu")
