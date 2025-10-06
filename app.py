@@ -4,12 +4,12 @@ import datetime
 import os
 
 # =========================
-# DATABASE
+# DATABASE SETUP
 # =========================
 conn = sqlite3.connect('lms.db', check_same_thread=False)
 c = conn.cursor()
 
-# Buat tabel jika belum ada
+# === Users ===
 c.execute('''CREATE TABLE IF NOT EXISTS users (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     username TEXT UNIQUE,
@@ -17,6 +17,7 @@ c.execute('''CREATE TABLE IF NOT EXISTS users (
     role TEXT
 )''')
 
+# === Classes ===
 c.execute('''CREATE TABLE IF NOT EXISTS classes (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     class_name TEXT,
@@ -24,6 +25,7 @@ c.execute('''CREATE TABLE IF NOT EXISTS classes (
     teacher_id INTEGER
 )''')
 
+# === Materials ===
 c.execute('''CREATE TABLE IF NOT EXISTS materials (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     class_id INTEGER,
@@ -32,6 +34,7 @@ c.execute('''CREATE TABLE IF NOT EXISTS materials (
     video_url TEXT
 )''')
 
+# === Attendance ===
 c.execute('''CREATE TABLE IF NOT EXISTS attendance (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     class_id INTEGER,
@@ -39,6 +42,7 @@ c.execute('''CREATE TABLE IF NOT EXISTS attendance (
     date TEXT
 )''')
 
+# === Assignments ===
 c.execute('''CREATE TABLE IF NOT EXISTS assignments (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     class_id INTEGER,
@@ -47,12 +51,42 @@ c.execute('''CREATE TABLE IF NOT EXISTS assignments (
     file_path TEXT
 )''')
 
+# === Submissions ===
 c.execute('''CREATE TABLE IF NOT EXISTS submissions (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     assignment_id INTEGER,
     student_id INTEGER,
     file_path TEXT,
     submitted_at TEXT
+)''')
+
+# === Pre-Test ===
+c.execute('''CREATE TABLE IF NOT EXISTS pretest_questions (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    class_id INTEGER,
+    question TEXT,
+    option_a TEXT,
+    option_b TEXT,
+    option_c TEXT,
+    option_d TEXT,
+    correct_option TEXT
+)''')
+
+c.execute('''CREATE TABLE IF NOT EXISTS pretest_answers (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    question_id INTEGER,
+    student_id INTEGER,
+    selected_option TEXT,
+    is_correct INTEGER
+)''')
+
+# === LKPD ===
+c.execute('''CREATE TABLE IF NOT EXISTS lkpd (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    class_id INTEGER,
+    title TEXT,
+    flipbook_link TEXT,
+    pdf_path TEXT
 )''')
 
 conn.commit()
@@ -94,15 +128,6 @@ def add_material(class_id, title, content, video_url):
               (class_id, title, content, video_url))
     conn.commit()
 
-def update_material(material_id, title, content, video_url):
-    c.execute("UPDATE materials SET title=?, content=?, video_url=? WHERE id=?", 
-              (title, content, video_url, material_id))
-    conn.commit()
-
-def delete_material(material_id):
-    c.execute("DELETE FROM materials WHERE id=?", (material_id,))
-    conn.commit()
-
 def get_materials(class_id):
     c.execute("SELECT * FROM materials WHERE class_id=?", (class_id,))
     return c.fetchall()
@@ -125,9 +150,6 @@ def get_attendance_report(class_id):
                  WHERE class_id=?""", (class_id,))
     return c.fetchall()
 
-# --------------------------
-# ASSIGNMENTS (TUGAS)
-# --------------------------
 def add_assignment(class_id, title, description, file_path):
     c.execute("INSERT INTO assignments (class_id, title, description, file_path) VALUES (?, ?, ?, ?)", 
               (class_id, title, description, file_path))
@@ -136,15 +158,6 @@ def add_assignment(class_id, title, description, file_path):
 def get_assignments(class_id):
     c.execute("SELECT * FROM assignments WHERE class_id=?", (class_id,))
     return c.fetchall()
-
-def update_assignment(assignment_id, title, description, file_path):
-    c.execute("UPDATE assignments SET title=?, description=?, file_path=? WHERE id=?", 
-              (title, description, file_path, assignment_id))
-    conn.commit()
-
-def delete_assignment(assignment_id):
-    c.execute("DELETE FROM assignments WHERE id=?", (assignment_id,))
-    conn.commit()
 
 def submit_assignment(assignment_id, student_id, file_path):
     submitted_at = str(datetime.datetime.now())
@@ -159,18 +172,52 @@ def get_submissions(assignment_id):
                  WHERE s.assignment_id=?""", (assignment_id,))
     return c.fetchall()
 
+# === Pre-test ===
+def add_pretest_question(class_id, q, a, b, c_, d, correct):
+    c.execute("INSERT INTO pretest_questions (class_id, question, option_a, option_b, option_c, option_d, correct_option) VALUES (?, ?, ?, ?, ?, ?, ?)",
+              (class_id, q, a, b, c_, d, correct))
+    conn.commit()
+
+def get_pretest_questions(class_id):
+    c.execute("SELECT * FROM pretest_questions WHERE class_id=?", (class_id,))
+    return c.fetchall()
+
+def save_pretest_answer(question_id, student_id, selected, is_correct):
+    c.execute("INSERT INTO pretest_answers (question_id, student_id, selected_option, is_correct) VALUES (?, ?, ?, ?)",
+              (question_id, student_id, selected, is_correct))
+    conn.commit()
+
+def get_student_score(class_id, student_id):
+    c.execute("""SELECT COUNT(*) FROM pretest_answers pa
+                 JOIN pretest_questions pq ON pa.question_id = pq.id
+                 WHERE pq.class_id=? AND pa.student_id=? AND pa.is_correct=1""",
+              (class_id, student_id))
+    return c.fetchone()[0]
+
+# === LKPD ===
+def add_lkpd(class_id, title, flipbook_link, pdf_path):
+    c.execute("INSERT INTO lkpd (class_id, title, flipbook_link, pdf_path) VALUES (?, ?, ?, ?)",
+              (class_id, title, flipbook_link, pdf_path))
+    conn.commit()
+
+def get_lkpd(class_id):
+    c.execute("SELECT * FROM lkpd WHERE class_id=?", (class_id,))
+    return c.fetchall()
+
 # =========================
 # STREAMLIT APP
 # =========================
-st.set_page_config(page_title="Mini LMS", page_icon="📚")
+st.set_page_config(page_title="COOK LMS", page_icon="📚")
+st.title("📚 COOK LMS")
 
 if "logged_in" not in st.session_state:
     st.session_state.logged_in = False
     st.session_state.user = None
+    st.session_state.current_class = None
 
-st.title("📚 COOK LMS")
-
-# Login & Register
+# =========================
+# LOGIN & REGISTER
+# =========================
 if not st.session_state.logged_in:
     menu = st.sidebar.selectbox("Menu", ["Login", "Register"])
 
@@ -199,6 +246,9 @@ if not st.session_state.logged_in:
             else:
                 st.error("Username sudah digunakan!")
 
+# =========================
+# DASHBOARD
+# =========================
 else:
     user = st.session_state.user
     role = user[3]
@@ -207,114 +257,109 @@ else:
     if st.sidebar.button("Logout"):
         st.session_state.logged_in = False
         st.session_state.user = None
+        st.session_state.current_class = None
         st.rerun()
 
-    # =========================
-    # Dashboard Guru
-    # =========================
+    st.divider()
+    st.header("🏫 Dashboard COOK LMS")
+
     if role == "Teacher":
-        st.subheader("👨‍🏫 Dashboard Guru")
-
-        tab1, tab2, tab3, tab4 = st.tabs(["📘 Buat Kelas", "📂 Materi", "📑 Tugas", "📋 Laporan Absensi"])
-
-        with tab1:
-            st.write("Buat kelas baru dengan kode unik.")
-            class_name = st.text_input("Nama Kelas")
-            class_code = st.text_input("Kode Kelas")
+        tabs = st.tabs(["📘 Kelas", "📂 Materi", "🧠 Pre-Test", "📑 Tugas", "📕 LKPD", "📋 Absensi"])
+        # === Buat Kelas ===
+        with tabs[0]:
+            st.subheader("📘 Buat Kelas")
+            cname = st.text_input("Nama Kelas")
+            ccode = st.text_input("Kode Kelas Unik")
             if st.button("Buat Kelas"):
-                if create_class(class_name, class_code, user[0]):
-                    st.success(f"Kelas '{class_name}' berhasil dibuat dengan kode {class_code}")
+                if create_class(cname, ccode, user[0]):
+                    st.success("Kelas berhasil dibuat!")
                 else:
                     st.error("Kode kelas sudah digunakan!")
 
-        with tab2:
-            st.write("Kelola Materi")
-            class_code = st.text_input("Masukkan kode kelas")
-            kelas = get_class_by_code(class_code)
+        # === Materi ===
+        with tabs[1]:
+            code = st.text_input("Masukkan kode kelas (materi)")
+            kelas = get_class_by_code(code)
             if kelas:
+                st.subheader(f"Materi untuk {kelas[1]}")
                 title = st.text_input("Judul Materi")
-                content = st.text_area("Konten Materi")
-                video_url = st.text_input("URL Video (YouTube)")
-                if st.button("Upload Materi"):
-                    add_material(kelas[0], title, content, video_url)
-                    st.success("Materi berhasil diupload!")
-
-                st.write("### 📂 Daftar Materi")
+                content = st.text_area("Isi Materi")
+                video = st.text_input("Link Video (opsional)")
+                if st.button("Tambah Materi"):
+                    add_material(kelas[0], title, content, video)
+                    st.success("Materi ditambahkan!")
+                st.divider()
                 for m in get_materials(kelas[0]):
-                    st.markdown(f"**{m[2]}**")
+                    st.markdown(f"### {m[2]}")
                     st.write(m[3])
-                    if m[4]:
-                        st.video(m[4])
+                    if m[4]: st.video(m[4])
 
-                    if st.button(f"✏️ Edit Materi {m[0]}"):
-                        new_title = st.text_input("Edit Judul", m[2], key=f"title{m[0]}")
-                        new_content = st.text_area("Edit Konten", m[3], key=f"content{m[0]}")
-                        new_video = st.text_input("Edit Video URL", m[4], key=f"video{m[0]}")
-                        if st.button("Simpan Perubahan", key=f"save{m[0]}"):
-                            update_material(m[0], new_title, new_content, new_video)
-                            st.success("Materi diperbarui!")
-                            st.rerun()
+        # === Pre-Test ===
+        with tabs[2]:
+            code = st.text_input("Masukkan kode kelas (Pre-Test)")
+            kelas = get_class_by_code(code)
+            if kelas:
+                st.subheader(f"Soal Pre-Test {kelas[1]}")
+                q = st.text_input("Pertanyaan")
+                a = st.text_input("Opsi A")
+                b = st.text_input("Opsi B")
+                c_ = st.text_input("Opsi C")
+                d = st.text_input("Opsi D")
+                correct = st.selectbox("Jawaban Benar", ["A", "B", "C", "D"])
+                if st.button("Tambah Soal"):
+                    add_pretest_question(kelas[0], q, a, b, c_, d, correct)
+                    st.success("Soal berhasil ditambahkan!")
 
-                    if st.button(f"🗑️ Hapus Materi {m[0]}"):
-                        delete_material(m[0])
-                        st.warning("Materi dihapus!")
-                        st.rerun()
+                st.divider()
+                for s in get_pretest_questions(kelas[0]):
+                    st.markdown(f"**{s[1]}. {s[2]}**")
+                    st.write(f"A. {s[3]}  |  B. {s[4]}  |  C. {s[5]}  |  D. {s[6]}")
+                    st.info(f"✅ Jawaban benar: {s[7]}")
 
-        with tab3:
-            st.write("Kelola Tugas")
-            class_code = st.text_input("Masukkan kode kelas (Tugas)")
-            kelas = get_class_by_code(class_code)
+        # === Tugas ===
+        with tabs[3]:
+            code = st.text_input("Kode Kelas (Tugas)")
+            kelas = get_class_by_code(code)
             if kelas:
                 title = st.text_input("Judul Tugas")
-                description = st.text_area("Deskripsi Tugas")
-                file = st.file_uploader("Upload File Tugas", type=["pdf", "docx", "txt"])
+                desc = st.text_area("Deskripsi")
+                file = st.file_uploader("Upload File (opsional)", type=["pdf", "docx", "txt"])
                 if st.button("Upload Tugas"):
-                    file_path = None
+                    path = None
                     if file:
-                        file_path = os.path.join(UPLOAD_DIR, file.name)
-                        with open(file_path, "wb") as f:
-                            f.write(file.getbuffer())
-                    add_assignment(kelas[0], title, description, file_path)
+                        path = os.path.join(UPLOAD_DIR, file.name)
+                        with open(path, "wb") as f: f.write(file.getbuffer())
+                    add_assignment(kelas[0], title, desc, path)
                     st.success("Tugas berhasil diupload!")
+                st.divider()
+                for t in get_assignments(kelas[0]):
+                    st.markdown(f"**{t[1]}** - {t[2]}")
 
-                st.write("### 📂 Daftar Tugas")
-                for a in get_assignments(kelas[0]):
-                    st.markdown(f"**{a[1]}** - {a[2]}")
-                    if a[3]:
-                        st.download_button("📥 Download Tugas", open(a[4], "rb"), file_name=os.path.basename(a[4]))
+        # === LKPD ===
+        with tabs[4]:
+            code = st.text_input("Kode Kelas (LKPD)")
+            kelas = get_class_by_code(code)
+            if kelas:
+                title = st.text_input("Judul LKPD")
+                flip = st.text_input("Link Flipbook (opsional)")
+                pdf = st.file_uploader("Upload PDF (opsional)", type=["pdf"])
+                if st.button("Tambahkan LKPD"):
+                    pdf_path = None
+                    if pdf:
+                        pdf_path = os.path.join(UPLOAD_DIR, pdf.name)
+                        with open(pdf_path, "wb") as f: f.write(pdf.getbuffer())
+                    add_lkpd(kelas[0], title, flip, pdf_path)
+                    st.success("LKPD ditambahkan!")
+                st.divider()
+                for l in get_lkpd(kelas[0]):
+                    st.markdown(f"### {l[1]}")
+                    if l[2]: st.markdown(f"[🌐 Lihat Flipbook]({l[2]})")
+                    if l[3]: st.download_button("📥 Download PDF", open(l[3], "rb"), file_name=os.path.basename(l[3]))
 
-                    if st.button(f"✏️ Edit Tugas {a[0]}"):
-                        new_title = st.text_input("Edit Judul", a[1], key=f"atitle{a[0]}")
-                        new_desc = st.text_area("Edit Deskripsi", a[2], key=f"adesc{a[0]}")
-                        new_file = st.file_uploader("Upload File Baru", type=["pdf", "docx", "txt"], key=f"afile{a[0]}")
-                        new_file_path = a[4]
-                        if new_file:
-                            new_file_path = os.path.join(UPLOAD_DIR, new_file.name)
-                            with open(new_file_path, "wb") as f:
-                                f.write(new_file.getbuffer())
-                        if st.button("Simpan Perubahan", key=f"asave{a[0]}"):
-                            update_assignment(a[0], new_title, new_desc, new_file_path)
-                            st.success("Tugas diperbarui!")
-                            st.rerun()
-
-                    if st.button(f"🗑️ Hapus Tugas {a[0]}"):
-                        delete_assignment(a[0])
-                        st.warning("Tugas dihapus!")
-                        st.rerun()
-
-                    st.write("### 📥 Jawaban Siswa")
-                    subs = get_submissions(a[0])
-                    if subs:
-                        for s in subs:
-                            st.write(f"👩‍🎓 {s[0]} - {s[2]}")
-                            st.download_button("Download Jawaban", open(s[1], "rb"), file_name=os.path.basename(s[1]), key=f"dl{s[1]}")
-                    else:
-                        st.info("Belum ada jawaban")
-
-        with tab4:
-            st.write("Laporan Absensi Siswa")
-            class_code = st.text_input("Masukkan kode kelas untuk melihat absensi")
-            kelas = get_class_by_code(class_code)
+        # === Absensi ===
+        with tabs[5]:
+            code = st.text_input("Kode Kelas (Absensi)")
+            kelas = get_class_by_code(code)
             if kelas:
                 data = get_attendance_report(kelas[0])
                 if data:
@@ -324,64 +369,89 @@ else:
                     st.info("Belum ada absensi")
 
     # =========================
-    # Dashboard Siswa
+    # STUDENT
     # =========================
     else:
-        st.subheader("👩‍🎓 Dashboard Siswa")
-
-        tab1, tab2, tab3, tab4 = st.tabs(["🔑 Join Kelas", "📖 Materi", "✅ Absensi", "📝 Tugas"])
-
-        with tab1:
-            st.write("Masukkan kode kelas untuk bergabung")
-            class_code = st.text_input("Kode Kelas")
+        tabs = st.tabs(["🔑 Join Kelas", "📖 Materi", "🧠 Pre-Test", "✅ Absensi", "📝 Tugas", "📕 LKPD"])
+        # === Join ===
+        with tabs[0]:
+            code = st.text_input("Masukkan kode kelas")
             if st.button("Join"):
-                kelas = get_class_by_code(class_code)
+                kelas = get_class_by_code(code)
                 if kelas:
                     st.session_state.current_class = kelas
                     st.success(f"Berhasil join kelas {kelas[1]}")
                 else:
-                    st.error("Kode kelas tidak ditemukan")
+                    st.error("Kode kelas salah!")
 
-        with tab2:
-            if "current_class" in st.session_state:
-                kelas = st.session_state.current_class
-                st.write(f"Materi untuk kelas: {kelas[1]}")
-                materials = get_materials(kelas[0])
-                for m in materials:
-                    st.markdown(f"### 📘 {m[2]}")
+        # === Materi ===
+        with tabs[1]:
+            if st.session_state.current_class:
+                k = st.session_state.current_class
+                for m in get_materials(k[0]):
+                    st.markdown(f"### {m[2]}")
                     st.write(m[3])
-                    if m[4]:
-                        st.video(m[4])
+                    if m[4]: st.video(m[4])
             else:
-                st.info("Silakan join kelas dulu")
+                st.info("Silakan join kelas dulu.")
 
-        with tab3:
-            if "current_class" in st.session_state:
-                kelas = st.session_state.current_class
-                if st.button("Isi Daftar Hadir"):
-                    if mark_attendance(kelas[0], user[0]):
-                        st.success("Absensi berhasil disimpan")
+        # === Pre-Test ===
+        with tabs[2]:
+            if st.session_state.current_class:
+                k = st.session_state.current_class
+                qs = get_pretest_questions(k[0])
+                score = 0
+                for q in qs:
+                    st.write(f"**{q[2]}**")
+                    opt = st.radio("Pilih jawaban", ["A", "B", "C", "D"], key=q[0])
+                    if st.button(f"Kirim Jawaban {q[0]}"):
+                        is_correct = 1 if opt == q[7] else 0
+                        save_pretest_answer(q[0], user[0], opt, is_correct)
+                        st.success("Jawaban disimpan!")
+                        st.rerun()
+                score = get_student_score(k[0], user[0])
+                st.info(f"Skor saat ini: {score}/{len(qs)}")
+            else:
+                st.info("Silakan join kelas dulu.")
+
+        # === Absensi ===
+        with tabs[3]:
+            if st.session_state.current_class:
+                k = st.session_state.current_class
+                if st.button("Isi Absensi"):
+                    if mark_attendance(k[0], user[0]):
+                        st.success("Absensi berhasil!")
                     else:
                         st.warning("Anda sudah absen hari ini")
             else:
-                st.info("Silakan join kelas dulu")
+                st.info("Join kelas dulu.")
 
-        with tab4:
-            if "current_class" in st.session_state:
-                kelas = st.session_state.current_class
-                st.write(f"Tugas untuk kelas: {kelas[1]}")
-                for a in get_assignments(kelas[0]):
-                    st.markdown(f"### 📑 {a[1]}")
+        # === Tugas ===
+        with tabs[4]:
+            if st.session_state.current_class:
+                k = st.session_state.current_class
+                for a in get_assignments(k[0]):
+                    st.markdown(f"### {a[1]}")
                     st.write(a[2])
                     if a[4]:
-                        st.download_button("📥 Download Tugas", open(a[4], "rb"), file_name=os.path.basename(a[4]), key=f"dlstu{a[0]}")
-
-                    uploaded = st.file_uploader("Upload Jawaban", type=["pdf", "docx", "txt"], key=f"jawaban{a[0]}")
-                    if uploaded and st.button(f"Kumpulkan Jawaban {a[0]}"):
-                        file_path = os.path.join(UPLOAD_DIR, f"{user[1]}_{uploaded.name}")
-                        with open(file_path, "wb") as f:
-                            f.write(uploaded.getbuffer())
-                        submit_assignment(a[0], user[0], file_path)
-                        st.success("Jawaban berhasil dikumpulkan!")
+                        st.download_button("📥 Download", open(a[4], "rb"), file_name=os.path.basename(a[4]))
+                    up = st.file_uploader("Upload Jawaban", key=f"ans{a[0]}")
+                    if st.button(f"Kumpulkan {a[0]}"):
+                        if up:
+                            path = os.path.join(UPLOAD_DIR, f"{user[1]}_{up.name}")
+                            with open(path, "wb") as f: f.write(up.getbuffer())
+                            submit_assignment(a[0], user[0], path)
+                            st.success("Jawaban dikumpulkan!")
             else:
-                st.info("Silakan join kelas dulu")
+                st.info("Join kelas dulu.")
+
+        # === LKPD ===
+        with tabs[5]:
+            if st.session_state.current_class:
+                k = st.session_state.current_class
+                for l in get_lkpd(k[0]):
+                    st.markdown(f"### {l[1]}")
+                    if l[2]: st.markdown(f"[🌐 Buka Flipbook]({l[2]})")
+                    if l[3]: st.download_button("📥 Download PDF", open(l[3], "rb"), file_name=os.path.basename(l[3]))
+            else:
+                st.info("Silakan join kelas dulu.")
