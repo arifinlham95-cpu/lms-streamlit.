@@ -32,7 +32,7 @@ c.execute('''CREATE TABLE IF NOT EXISTS materials (
     class_id INTEGER,
     title TEXT,
     content TEXT,
-    video_url TEXT
+    pdf_path TEXT
 )''')
 
 # === Attendance ===
@@ -86,7 +86,6 @@ c.execute('''CREATE TABLE IF NOT EXISTS lkpd (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     class_id INTEGER,
     title TEXT,
-    flipbook_link TEXT,
     pdf_path TEXT
 )''')
 
@@ -124,15 +123,17 @@ def get_class_by_code(class_code):
     c.execute("SELECT * FROM classes WHERE class_code=?", (class_code,))
     return c.fetchone()
 
-def add_material(class_id, title, content, video_url):
-    c.execute("INSERT INTO materials (class_id, title, content, video_url) VALUES (?, ?, ?, ?)", 
-              (class_id, title, content, video_url))
+# === Materials ===
+def add_material(class_id, title, content, pdf_path):
+    c.execute("INSERT INTO materials (class_id, title, content, pdf_path) VALUES (?, ?, ?, ?)", 
+              (class_id, title, content, pdf_path))
     conn.commit()
 
 def get_materials(class_id):
     c.execute("SELECT * FROM materials WHERE class_id=?", (class_id,))
     return c.fetchall()
 
+# === Attendance ===
 def mark_attendance(class_id, student_id):
     today = str(datetime.date.today())
     c.execute("SELECT * FROM attendance WHERE class_id=? AND student_id=? AND date=?", 
@@ -151,6 +152,7 @@ def get_attendance_report(class_id):
                  WHERE class_id=?""", (class_id,))
     return c.fetchall()
 
+# === Assignments ===
 def add_assignment(class_id, title, description, file_path):
     c.execute("INSERT INTO assignments (class_id, title, description, file_path) VALUES (?, ?, ?, ?)", 
               (class_id, title, description, file_path))
@@ -196,14 +198,21 @@ def get_student_score(class_id, student_id):
     return c.fetchone()[0]
 
 # === LKPD ===
-def add_lkpd(class_id, title, flipbook_link, pdf_path):
-    c.execute("INSERT INTO lkpd (class_id, title, flipbook_link, pdf_path) VALUES (?, ?, ?, ?)",
-              (class_id, title, flipbook_link, pdf_path))
+def add_lkpd(class_id, title, pdf_path):
+    c.execute("INSERT INTO lkpd (class_id, title, pdf_path) VALUES (?, ?, ?)",
+              (class_id, title, pdf_path))
     conn.commit()
 
 def get_lkpd(class_id):
     c.execute("SELECT * FROM lkpd WHERE class_id=?", (class_id,))
     return c.fetchall()
+
+# === PDF VIEWER ===
+def display_pdf(file_path):
+    with open(file_path, "rb") as f:
+        base64_pdf = base64.b64encode(f.read()).decode('utf-8')
+    pdf_display = f'<iframe src="data:application/pdf;base64,{base64_pdf}" width="100%" height="600" type="application/pdf"></iframe>'
+    st.markdown(pdf_display, unsafe_allow_html=True)
 
 # =========================
 # STREAMLIT APP
@@ -264,68 +273,93 @@ else:
     st.divider()
     st.header("🏫 Dashboard COOK LMS")
 
+    # =========================
+    # TEACHER VIEW
+    # =========================
     if role == "Teacher":
-        tabs = st.tabs(["📘 Kelas", "📂 Materi", "🧠 Pre-Test", "📑 Tugas", "📕 LKPD", "📋 Absensi"])
+        tabs = st.tabs(["📘 Kelas", "📂 Materi (PDF)", "🧠 Pre-Test", "📑 Tugas", "📕 LKPD (PDF)", "📋 Absensi"])
 
-        # === LKPD ===
-        with tabs[4]:
-            code = st.text_input("Kode Kelas (LKPD)")
+        # === Kelas ===
+        with tabs[0]:
+            st.subheader("📘 Buat Kelas")
+            cname = st.text_input("Nama Kelas")
+            ccode = st.text_input("Kode Kelas Unik")
+            if st.button("Buat Kelas"):
+                if create_class(cname, ccode, user[0]):
+                    st.success("Kelas berhasil dibuat!")
+                else:
+                    st.error("Kode kelas sudah digunakan!")
+
+        # === Materi ===
+        with tabs[1]:
+            code = st.text_input("Masukkan kode kelas (Materi)")
             kelas = get_class_by_code(code)
             if kelas:
-                title = st.text_input("Judul LKPD")
-                flip = st.text_input("Link Flipbook (opsional)")
-                pdf = st.file_uploader("Upload PDF (opsional)", type=["pdf"])
-                if st.button("Tambahkan LKPD"):
-                    pdf_path = None
+                st.subheader(f"Materi PDF untuk {kelas[1]}")
+                title = st.text_input("Judul Materi")
+                content = st.text_area("Deskripsi Materi")
+                pdf = st.file_uploader("Upload Materi (PDF)", type=["pdf"])
+                if st.button("Tambah Materi PDF"):
                     if pdf:
                         pdf_path = os.path.join(UPLOAD_DIR, pdf.name)
                         with open(pdf_path, "wb") as f: f.write(pdf.getbuffer())
-                    add_lkpd(kelas[0], title, flip, pdf_path)
-                    st.success("LKPD ditambahkan!")
+                        add_material(kelas[0], title, content, pdf_path)
+                        st.success("Materi PDF berhasil ditambahkan!")
+                st.divider()
+                for m in get_materials(kelas[0]):
+                    st.markdown(f"### {m[2]} - {m[3]}")
+                    display_pdf(m[4])
+
+        # === LKPD ===
+        with tabs[4]:
+            code = st.text_input("Kode Kelas (LKPD PDF)")
+            kelas = get_class_by_code(code)
+            if kelas:
+                title = st.text_input("Judul LKPD")
+                pdf = st.file_uploader("Upload LKPD (PDF)", type=["pdf"])
+                if st.button("Tambahkan LKPD PDF"):
+                    if pdf:
+                        pdf_path = os.path.join(UPLOAD_DIR, pdf.name)
+                        with open(pdf_path, "wb") as f: f.write(pdf.getbuffer())
+                        add_lkpd(kelas[0], title, pdf_path)
+                        st.success("LKPD berhasil diupload!")
                 st.divider()
                 for l in get_lkpd(kelas[0]):
                     st.markdown(f"### {l[1]}")
-                    if l[2]:
-                        st.markdown(f"[🌐 Buka Flipbook]({l[2]})")
-                    if l[3]:
-                        with open(l[3], "rb") as f:
-                            st.download_button("📥 Download PDF", f, file_name=os.path.basename(l[3]))
-                        # tampilkan seperti flipbook
-                        base64_pdf = base64.b64encode(open(l[3], "rb").read()).decode("utf-8")
-                        flip_view = f"""
-                        <iframe 
-                            src="data:application/pdf;base64,{base64_pdf}" 
-                            width="100%" 
-                            height="600" 
-                            style="border-radius:12px; box-shadow:0 4px 20px rgba(0,0,0,0.15);">
-                        </iframe>
-                        """
-                        st.markdown(flip_view, unsafe_allow_html=True)
+                    display_pdf(l[2])
 
-    # === STUDENT ===
+    # =========================
+    # STUDENT VIEW
+    # =========================
     else:
         tabs = st.tabs(["🔑 Join Kelas", "📖 Materi", "🧠 Pre-Test", "✅ Absensi", "📝 Tugas", "📕 LKPD"])
 
-        # === LKPD ===
+        with tabs[0]:
+            code = st.text_input("Masukkan kode kelas")
+            if st.button("Join"):
+                kelas = get_class_by_code(code)
+                if kelas:
+                    st.session_state.current_class = kelas
+                    st.success(f"Berhasil join kelas {kelas[1]}")
+                else:
+                    st.error("Kode kelas salah!")
+
+        with tabs[1]:
+            if st.session_state.current_class:
+                k = st.session_state.current_class
+                for m in get_materials(k[0]):
+                    st.markdown(f"### {m[2]} - {m[3]}")
+                    display_pdf(m[4])
+            else:
+                st.info("Silakan join kelas dulu.")
+
         with tabs[5]:
             if st.session_state.current_class:
                 k = st.session_state.current_class
                 for l in get_lkpd(k[0]):
                     st.markdown(f"### {l[1]}")
-                    if l[2]:
-                        st.markdown(f"[🌐 Buka Flipbook]({l[2]})")
-                    if l[3]:
-                        with open(l[3], "rb") as f:
-                            st.download_button("📥 Download PDF", f, file_name=os.path.basename(l[3]))
-                        base64_pdf = base64.b64encode(open(l[3], "rb").read()).decode("utf-8")
-                        flip_view = f"""
-                        <iframe 
-                            src="data:application/pdf;base64,{base64_pdf}" 
-                            width="100%" 
-                            height="600" 
-                            style="border-radius:12px; box-shadow:0 4px 20px rgba(0,0,0,0.15);">
-                        </iframe>
-                        """
-                        st.markdown(flip_view, unsafe_allow_html=True)
+                    display_pdf(l[2])
             else:
                 st.info("Silakan join kelas dulu.")
+
+
