@@ -1,5 +1,3 @@
-
-
 import streamlit as st
 import sqlite3
 import datetime
@@ -267,6 +265,7 @@ else:
 
     if role == "Teacher":
         tabs = st.tabs(["📘 Kelas", "📂 Materi", "🧠 Pre-Test", "📑 Tugas", "📕 LKPD", "📋 Absensi"])
+
         # === Buat Kelas ===
         with tabs[0]:
             st.subheader("📘 Buat Kelas")
@@ -311,7 +310,6 @@ else:
                 if st.button("Tambah Soal"):
                     add_pretest_question(kelas[0], q, a, b, c_, d, correct)
                     st.success("Soal berhasil ditambahkan!")
-
                 st.divider()
                 for s in get_pretest_questions(kelas[0]):
                     st.markdown(f"**{s[1]}. {s[2]}**")
@@ -329,8 +327,9 @@ else:
                 if st.button("Upload Tugas"):
                     path = None
                     if file:
-                        path = os.path.join(UPLOAD_DIR, file.name)
-                        with open(path, "wb") as f: f.write(file.getbuffer())
+                        path = os.path.abspath(os.path.join(UPLOAD_DIR, file.name))
+                        with open(path, "wb") as f:
+                            f.write(file.getbuffer())
                     add_assignment(kelas[0], title, desc, path)
                     st.success("Tugas berhasil diupload!")
                 st.divider()
@@ -348,15 +347,22 @@ else:
                 if st.button("Tambahkan LKPD"):
                     pdf_path = None
                     if pdf:
-                        pdf_path = os.path.join(UPLOAD_DIR, pdf.name)
-                        with open(pdf_path, "wb") as f: f.write(pdf.getbuffer())
+                        pdf_path = os.path.abspath(os.path.join(UPLOAD_DIR, pdf.name))
+                        with open(pdf_path, "wb") as f:
+                            f.write(pdf.getbuffer())
                     add_lkpd(kelas[0], title, flip, pdf_path)
                     st.success("LKPD ditambahkan!")
                 st.divider()
                 for l in get_lkpd(kelas[0]):
                     st.markdown(f"### {l[1]}")
-                    if l[2]: st.markdown(f"[🌐 Lihat Flipbook]({l[2]})")
-                    if l[3]: st.download_button("📥 Download PDF", open(l[3], "rb"), file_name=os.path.basename(l[3]))
+                    if l[2]:
+                        st.markdown(f"[🌐 Lihat Flipbook]({l[2]})")
+                    if l[3]:
+                        if os.path.exists(l[3]):
+                            with open(l[3], "rb") as pdf_file:
+                                st.download_button("📥 Download PDF", pdf_file, file_name=os.path.basename(l[3]))
+                        else:
+                            st.warning(f"⚠️ File PDF tidak ditemukan di path: {l[3]}")
 
         # === Absensi ===
         with tabs[5]:
@@ -375,6 +381,7 @@ else:
     # =========================
     else:
         tabs = st.tabs(["🔑 Join Kelas", "📖 Materi", "🧠 Pre-Test", "✅ Absensi", "📝 Tugas", "📕 LKPD"])
+
         # === Join ===
         with tabs[0]:
             code = st.text_input("Masukkan kode kelas")
@@ -436,12 +443,17 @@ else:
                     st.markdown(f"### {a[1]}")
                     st.write(a[2])
                     if a[4]:
-                        st.download_button("📥 Download", open(a[4], "rb"), file_name=os.path.basename(a[4]))
+                        if os.path.exists(a[4]):
+                            with open(a[4], "rb") as f:
+                                st.download_button("📥 Download", f, file_name=os.path.basename(a[4]))
+                        else:
+                            st.warning(f"⚠️ File tugas tidak ditemukan di path: {a[4]}")
                     up = st.file_uploader("Upload Jawaban", key=f"ans{a[0]}")
                     if st.button(f"Kumpulkan {a[0]}"):
                         if up:
-                            path = os.path.join(UPLOAD_DIR, f"{user[1]}_{up.name}")
-                            with open(path, "wb") as f: f.write(up.getbuffer())
+                            path = os.path.abspath(os.path.join(UPLOAD_DIR, f"{user[1]}_{up.name}"))
+                            with open(path, "wb") as f:
+                                f.write(up.getbuffer())
                             submit_assignment(a[0], user[0], path)
                             st.success("Jawaban dikumpulkan!")
             else:
@@ -453,8 +465,14 @@ else:
                 k = st.session_state.current_class
                 for l in get_lkpd(k[0]):
                     st.markdown(f"### {l[1]}")
-                    if l[2]: st.markdown(f"[🌐 Buka Flipbook]({l[2]})")
-                    if l[3]: st.download_button("📥 Download PDF", open(l[3], "rb"), file_name=os.path.basename(l[3]))
+                    if l[2]:
+                        st.markdown(f"[🌐 Buka Flipbook]({l[2]})")
+                    if l[3]:
+                        if os.path.exists(l[3]):
+                            with open(l[3], "rb") as pdf_file:
+                                st.download_button("📥 Download PDF", pdf_file, file_name=os.path.basename(l[3]))
+                        else:
+                            st.warning(f"⚠️ File PDF tidak ditemukan di path: {l[3]}")
             else:
                 st.info("Silakan join kelas dulu.")
 
