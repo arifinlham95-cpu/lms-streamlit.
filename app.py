@@ -20,10 +20,9 @@ if "users" not in st.session_state:
         "siswa": {"siswa123": "Siswa Default"}
     }
 if "kelas_data" not in st.session_state:
-    st.session_state.kelas_data = {}  # {kode_kelas: {"nama":..., "guru":..., "materi": [...], "anggota": [...] }}
+    st.session_state.kelas_data = {}
 if "test_data" not in st.session_state:
-    st.session_state.test_data = {}  # {kode_test: {"judul":..., "guru":..., "soal": [...], "hasil": {siswa: skor}}}
-
+    st.session_state.test_data = {}
 
 # ----------------------------------
 # FUNGSI LOGIN / REGISTER
@@ -69,7 +68,6 @@ def login():
                     st.success(f"Akun {role_reg} berhasil dibuat! Silakan login.")
                     st.info(f"Gunakan kata sandi: **{pass_reg}** untuk login.")
                     st.rerun()
-
 
 # ----------------------------------
 # HALAMAN KELAS
@@ -182,15 +180,13 @@ def halaman_kelas():
                             if m["foto"]:
                                 st.image(m["foto"])
 
-
 # ----------------------------------
-# HALAMAN TEST (BARU)
+# HALAMAN TEST
 # ----------------------------------
 def halaman_test():
     st.title("🧠 Test (Ujian)")
     role = st.session_state.role
 
-    # ----------------- GURU -----------------
     if role == "guru":
         st.subheader("📘 Buat Test Baru")
         judul_test = st.text_input("Judul Test")
@@ -236,7 +232,6 @@ def halaman_test():
                             st.success("Soal ditambahkan!")
                             st.rerun()
 
-                    # Tampilkan soal
                     if data["soal"]:
                         st.markdown("### 🧾 Daftar Soal")
                         for i, q in enumerate(data["soal"]):
@@ -247,7 +242,6 @@ def halaman_test():
                     else:
                         st.info("Belum ada soal di test ini.")
 
-                    # Hasil siswa
                     if data["hasil"]:
                         st.markdown("### 📊 Hasil Siswa")
                         df = pd.DataFrame([
@@ -256,7 +250,6 @@ def halaman_test():
                         ])
                         st.dataframe(df, use_container_width=True)
 
-    # ----------------- SISWA -----------------
     elif role == "siswa":
         st.subheader("📘 Kerjakan Test")
         kode_test = st.text_input("Masukkan Kode Test")
@@ -273,7 +266,6 @@ def halaman_test():
             data = st.session_state.test_data[kode]
             st.markdown(f"## {data['judul']}")
             jawaban_siswa = {}
-            skor = 0
 
             with st.form("form_test_siswa"):
                 for i, q in enumerate(data["soal"]):
@@ -285,8 +277,61 @@ def halaman_test():
                         format_func=lambda x: f"{x}. {q['opsi'][x]}"
                     )
                     jawaban_siswa[i] = jawaban
+
                 submit_test = st.form_submit_button("Kirim Jawaban")
 
                 if submit_test:
+                    skor = 0
+                    for i, q in enumerate(data["soal"]):
+                        if jawaban_siswa[i] == q["benar"]:
+                            skor += 1
 
+                    nilai = round((skor / len(data["soal"])) * 100, 2)
+                    st.success(f"🎉 Tes selesai! Nilai Anda: {nilai}")
+                    st.session_state.test_data[kode]["hasil"][st.session_state.username] = nilai
+                    del st.session_state.current_test
+                    st.rerun()
+
+# ----------------------------------
+# MAIN CONTROL
+# ----------------------------------
+def main_app():
+    st.sidebar.title("📚 Navigasi LMS")
+    if st.session_state.role:
+        st.sidebar.write(f"👋 Hai, **{st.session_state.username}** ({st.session_state.role.capitalize()})")
+
+    menu = st.sidebar.radio("Pilih Halaman:", [
+        "🏠 Dashboard",
+        "👥 Kelas",
+        "🧠 Test",
+        "🚪 Logout"
+    ])
+
+    if menu == "🏠 Dashboard":
+        st.title("COOK LMS")
+        st.write("Selamat datang di COOK LMS! 👋")
+
+    elif menu == "👥 Kelas":
+        halaman_kelas()
+
+    elif menu == "🧠 Test":
+        halaman_test()
+
+    elif menu == "🚪 Logout":
+        st.session_state.logged_in = False
+        st.session_state.role = ""
+        st.session_state.username = ""
+        st.warning("Anda telah keluar.")
+        st.rerun()
+
+    st.markdown("---")
+    st.caption("COOK LMS | © 2025 Universitas Sriwijaya")
+
+# ----------------------------------
+# MAIN PROGRAM
+# ----------------------------------
+if not st.session_state.logged_in:
+    login()
+else:
+    main_app()
 
