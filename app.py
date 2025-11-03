@@ -10,7 +10,7 @@ st.set_page_config(page_title="COOK LMS", layout="wide")
 if "logged_in" not in st.session_state:
     st.session_state.logged_in = False
 if "role" not in st.session_state:
-    st.session_state.role = None
+    st.session_state.role = ""
 if "username" not in st.session_state:
     st.session_state.username = ""
 
@@ -51,7 +51,12 @@ def login():
 # ----------------------------------
 def main_app():
     st.sidebar.title("📚 Navigasi LMS")
-    st.sidebar.write(f"👋 Hai, **{st.session_state.username}** ({st.session_state.role.capitalize()})")
+
+    # ✅ Cegah error NoneType pada role.capitalize()
+    if st.session_state.role:
+        st.sidebar.write(f"👋 Hai, **{st.session_state.username}** ({st.session_state.role.capitalize()})")
+    else:
+        st.sidebar.write("👋 Hai, pengguna!")
 
     menu = st.sidebar.radio("Pilih Halaman:", [
         "🏠 Dashboard",
@@ -75,7 +80,7 @@ def main_app():
             st.subheader("👩‍🏫 Student Progress ")
             data_progress = pd.DataFrame({
                 "Nama Siswa": ["Andi", "Budi", "Citra", "Dina"],
-                "Kelas": ["Fisika XII"]*4,
+                "Kelas": ["Fisika XII"] * 4,
                 "Progress Materi (%)": [80, 60, 90, 70],
                 "Tugas Selesai": [3, 2, 4, 3],
                 "Absen (%)": [100, 80, 90, 85]
@@ -106,41 +111,35 @@ def main_app():
                 st.warning("Jangan lupa isi absensi di menu *Absensi*!")
 
     # -------------------------------------------------
-    # FITUR LAIN (SAMA SEPERTI SEBELUMNYA)
+    # FITUR LAIN
     # -------------------------------------------------
     elif menu == "👥 Kelas":
         st.title("Kelas")
         st.info("Daftar kelas dan jadwal perkuliahan.")
-        # tampilkan_kelas()
 
     elif menu == "📖 Materi":
         st.title("Materi Pembelajaran")
         st.info("Materi kuliah yang dapat diakses mahasiswa.")
-        # tampilkan_materi()
 
     elif menu == "🧠 Pre-Test":
         st.title("Pre-Test")
         st.info("Kerjakan pre-test untuk mengukur pemahaman awal.")
-        # tampilkan_pretest()
 
     elif menu == "📝 Tugas":
         st.title("Tugas")
         st.info("Kumpulkan tugas sesuai instruksi dosen.")
-        # tampilkan_tugas()
 
     elif menu == "📄 LKPD":
         st.title("LKPD (Lembar Kerja Peserta Didik)")
         st.info("Kerjakan LKPD untuk memperdalam pemahaman.")
-        # tampilkan_lkpd()
 
     elif menu == "📅 Absensi":
         st.title("Absensi")
         st.info("Isi daftar hadir perkuliahan.")
-        # tampilkan_absensi()
 
     elif menu == "🚪 Logout":
         st.session_state.logged_in = False
-        st.session_state.role = None
+        st.session_state.role = ""
         st.session_state.username = ""
         st.warning("Anda telah keluar dari sistem.")
         st.rerun()
