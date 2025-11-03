@@ -19,6 +19,10 @@ if "users" not in st.session_state:
         "guru": {"guru123": "Guru Default"},
         "siswa": {"siswa123": "Siswa Default"}
     }
+if "kelas_data" not in st.session_state:
+    # Menyimpan data kelas dan materi
+    st.session_state.kelas_data = {}  # format: {kode_kelas: {"nama":..., "guru":..., "materi": [...], "anggota": [...] }}
+
 
 # ----------------------------------
 # FUNGSI LOGIN / REGISTER
@@ -40,7 +44,6 @@ def login():
             elif username == "" or password == "":
                 st.warning("Masukkan username dan password.")
             else:
-                # Cek akun di session_state
                 if role.lower() in st.session_state.users and password in st.session_state.users[role.lower()]:
                     st.session_state.logged_in = True
                     st.session_state.role = role.lower()
@@ -60,30 +63,157 @@ def login():
             if nama_reg == "" or pass_reg == "":
                 st.warning("Isi semua kolom terlebih dahulu.")
             else:
-                # Simpan akun baru
                 if pass_reg in st.session_state.users[role_reg.lower()]:
-                    st.error("Kata sandi ini sudah digunakan, buat yang lain.")
+                    st.error("Kata sandi ini sudah digunakan.")
                 else:
                     st.session_state.users[role_reg.lower()][pass_reg] = nama_reg
                     st.success(f"Akun {role_reg} berhasil dibuat! Silakan login.")
                     st.info(f"Gunakan kata sandi: **{pass_reg}** untuk login.")
                     st.rerun()
 
+
 # ----------------------------------
-# HALAMAN UTAMA LMS
+# HALAMAN KELAS & MATERI (Gabung)
+# ----------------------------------
+def halaman_kelas():
+    st.title("👥 Kelas dan Materi")
+    role = st.session_state.role
+
+    # ================== GURU ==================
+    if role == "guru":
+        st.subheader("📘 Buat Kelas Baru")
+        nama_kelas = st.text_input("Nama Kelas")
+        kode_kelas = st.text_input("Kode Kelas (unik)")
+        if st.button("➕ Buat Kelas"):
+            if not nama_kelas or not kode_kelas:
+                st.warning("Isi semua kolom.")
+            elif kode_kelas in st.session_state.kelas_data:
+                st.error("Kode kelas sudah digunakan.")
+            else:
+                st.session_state.kelas_data[kode_kelas] = {
+                    "nama": nama_kelas,
+                    "guru": st.session_state.username,
+                    "materi": [],
+                    "anggota": []
+                }
+                st.success(f"Kelas '{nama_kelas}' berhasil dibuat!")
+
+        st.divider()
+        st.subheader("📚 Daftar Kelas Anda")
+
+        kelas_guru = {k: v for k, v in st.session_state.kelas_data.items() if v["guru"] == st.session_state.username}
+        if not kelas_guru:
+            st.info("Belum ada kelas yang Anda buat.")
+        else:
+            for kode, data in kelas_guru.items():
+                with st.expander(f"{data['nama']} ({kode})"):
+                    st.markdown(f"👩‍🏫 Guru: **{data['guru']}**")
+                    st.markdown(f"👨‍🎓 Jumlah siswa: **{len(data['anggota'])}**")
+
+                    # Tambah materi
+                    with st.form(f"form_materi_{kode}"):
+                        st.markdown("### ➕ Tambah Materi")
+                        judul = st.text_input("Judul Materi", key=f"judul_{kode}")
+                        deskripsi = st.text_area("Deskripsi", key=f"des_{kode}")
+                        link_vidio = st.text_input("Link Video (opsional)", key=f"vid_{kode}")
+                        foto = st.file_uploader("Upload Foto (opsional)", type=["jpg", "png"], key=f"foto_{kode}")
+                        submitted = st.form_submit_button("Tambah Materi")
+
+                        if submitted:
+                            materi = {
+                                "judul": judul,
+                                "deskripsi": deskripsi,
+                                "link_vidio": link_vidio,
+                                "foto": foto.name if foto else None
+                            }
+                            st.session_state.kelas_data[kode]["materi"].append(materi)
+                            st.success("Materi berhasil ditambahkan!")
+                            st.rerun()
+
+                    # Daftar materi
+                    if data["materi"]:
+                        st.markdown("### 📄 Materi di Kelas Ini")
+                        for i, m in enumerate(data["materi"]):
+                            st.markdown(f"**{i+1}. {m['judul']}**")
+                            st.write(m["deskripsi"])
+                            if m["link_vidio"]:
+                                st.video(m["link_vidio"])
+                            if m["foto"]:
+                                st.image(m["foto"])
+                            col1, col2 = st.columns(2)
+                            if col1.button("✏️ Edit", key=f"edit_{kode}_{i}"):
+                                st.session_state.edit_index = (kode, i)
+                                st.rerun()
+                            if col2.button("🗑️ Hapus", key=f"hapus_{kode}_{i}"):
+                                st.session_state.kelas_data[kode]["materi"].pop(i)
+                                st.success("Materi dihapus.")
+                                st.rerun()
+                    else:
+                        st.info("Belum ada materi di kelas ini.")
+
+        # Mode edit materi
+        if "edit_index" in st.session_state:
+            kode, idx = st.session_state.edit_index
+            materi = st.session_state.kelas_data[kode]["materi"][idx]
+            st.sidebar.subheader(f"✏️ Edit Materi ({materi['judul']})")
+            judul_baru = st.sidebar.text_input("Judul Baru", materi["judul"])
+            des_baru = st.sidebar.text_area("Deskripsi Baru", materi["deskripsi"])
+            link_baru = st.sidebar.text_input("Link Video Baru", materi["link_vidio"])
+            if st.sidebar.button("Simpan Perubahan"):
+                materi["judul"], materi["deskripsi"], materi["link_vidio"] = judul_baru, des_baru, link_baru
+                st.success("Materi diperbarui!")
+                del st.session_state.edit_index
+                st.rerun()
+
+    # ================== SISWA ==================
+    elif role == "siswa":
+        st.subheader("📘 Bergabung ke Kelas")
+        kode_gabung = st.text_input("Masukkan Kode Kelas")
+        if st.button("Gabung"):
+            if kode_gabung not in st.session_state.kelas_data:
+                st.error("Kode kelas tidak ditemukan.")
+            else:
+                kelas = st.session_state.kelas_data[kode_gabung]
+                if st.session_state.username in kelas["anggota"]:
+                    st.info("Anda sudah tergabung di kelas ini.")
+                else:
+                    kelas["anggota"].append(st.session_state.username)
+                    st.success(f"Berhasil bergabung ke kelas {kelas['nama']}!")
+
+        st.divider()
+        st.subheader("📚 Kelas Saya")
+        kelas_saya = {k: v for k, v in st.session_state.kelas_data.items() if st.session_state.username in v["anggota"]}
+
+        if not kelas_saya:
+            st.info("Belum bergabung di kelas mana pun.")
+        else:
+            for kode, data in kelas_saya.items():
+                with st.expander(f"{data['nama']} ({kode})"):
+                    st.markdown(f"👩‍🏫 Guru: **{data['guru']}**")
+                    if not data["materi"]:
+                        st.warning("Belum ada materi di kelas ini.")
+                    else:
+                        for m in data["materi"]:
+                            st.markdown(f"### 📄 {m['judul']}")
+                            st.write(m["deskripsi"])
+                            if m["link_vidio"]:
+                                st.video(m["link_vidio"])
+                            if m["foto"]:
+                                st.image(m["foto"])
+
+
+# ----------------------------------
+# HALAMAN UTAMA & MENU LAIN
 # ----------------------------------
 def main_app():
     st.sidebar.title("📚 Navigasi LMS")
 
     if st.session_state.role:
         st.sidebar.write(f"👋 Hai, **{st.session_state.username}** ({st.session_state.role.capitalize()})")
-    else:
-        st.sidebar.write("👋 Hai, pengguna!")
 
     menu = st.sidebar.radio("Pilih Halaman:", [
         "🏠 Dashboard",
         "👥 Kelas",
-        "📖 Materi",
         "🧠 Pre-Test",
         "📝 Tugas",
         "📄 LKPD",
@@ -91,89 +221,28 @@ def main_app():
         "🚪 Logout"
     ])
 
-    # -------------------------------------------------
-    # DASHBOARD
-    # -------------------------------------------------
     if menu == "🏠 Dashboard":
         st.title("COOK LMS")
         st.write("Selamat datang di COOK LMS! 👋")
 
-        if st.session_state.role == "guru":
-            st.subheader("👩‍🏫 Student Progress")
-            data_progress = pd.DataFrame({
-                "Nama Siswa": ["Andi", "Budi", "Citra", "Dina"],
-                "Kelas": ["Fisika XII"] * 4,
-                "Progress Materi (%)": [80, 60, 90, 70],
-                "Tugas Selesai": [3, 2, 4, 3],
-                "Absen (%)": [100, 80, 90, 85]
-            })
-            st.dataframe(data_progress, use_container_width=True)
-            st.success("📊 Berikut perkembangan siswa di kelas Anda.")
-
-        elif st.session_state.role == "siswa":
-            st.subheader("📋 Tugas dan Absensi yang Belum Dikerjakan")
-
-            col1, col2 = st.columns(2)
-            with col1:
-                st.markdown("### 📝 Tugas Belum Dikerjakan")
-                tugas_belum = pd.DataFrame({
-                    "Judul Tugas": ["Tugas 1 - Gelombang", "Tugas 2 - Interferensi"],
-                    "Deadline": ["10 Nov 2025", "15 Nov 2025"]
-                })
-                st.table(tugas_belum)
-                st.info("Segera kerjakan tugas di menu *Tugas*!")
-
-            with col2:
-                st.markdown("### 📅 Absensi Belum Diisi")
-                absen_belum = pd.DataFrame({
-                    "Tanggal": ["01 Nov 2025", "03 Nov 2025"],
-                    "Kelas": ["Fisika 1", "Fisika 1"]
-                })
-                st.table(absen_belum)
-                st.warning("Jangan lupa isi absensi di menu *Absensi*!")
-
-    # -------------------------------------------------
-    # FITUR LAIN
-    # -------------------------------------------------
     elif menu == "👥 Kelas":
-        st.title("Kelas")
-        st.info("Daftar kelas dan jadwal perkuliahan.")
-
-    elif menu == "📖 Materi":
-        st.title("Materi Pembelajaran")
-        st.info("Materi kuliah yang dapat diakses mahasiswa.")
-
-    elif menu == "🧠 Pre-Test":
-        st.title("Pre-Test")
-        st.info("Kerjakan pre-test untuk mengukur pemahaman awal.")
-
-    elif menu == "📝 Tugas":
-        st.title("Tugas")
-        st.info("Kumpulkan tugas sesuai instruksi dosen.")
-
-    elif menu == "📄 LKPD":
-        st.title("LKPD (Lembar Kerja Peserta Didik)")
-        st.info("Kerjakan LKPD untuk memperdalam pemahaman.")
-
-    elif menu == "📅 Absensi":
-        st.title("Absensi")
-        st.info("Isi daftar hadir perkuliahan.")
+        halaman_kelas()
 
     elif menu == "🚪 Logout":
         st.session_state.logged_in = False
         st.session_state.role = ""
         st.session_state.username = ""
-        st.warning("Anda telah keluar dari sistem.")
+        st.warning("Anda telah keluar.")
         st.rerun()
 
     st.markdown("---")
     st.caption("COOK LMS | © 2025 Universitas Sriwijaya")
 
+
 # ----------------------------------
-# MAIN CONTROL FLOW
+# MAIN FLOW
 # ----------------------------------
 if not st.session_state.logged_in:
     login()
 else:
     main_app()
-
