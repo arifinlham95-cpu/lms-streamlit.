@@ -29,15 +29,15 @@ if menu == "🏠 Dashboard":
     # DASHBOARD GURU
     # ----------------------------------------
     if role == "guru":
-        st.subheader("👩‍🏫 Student Progress di Kelas Anda")
+        st.subheader("👩‍🏫 Student Progress")
 
         # Contoh data progress (bisa diganti dengan data asli dari database)
         data_progress = pd.DataFrame({
-            "Nama Siswa": ["Andi", "Budi", "Citra", "Dina"],
-            "Kelas": ["Fisika 1"]*4,
-            "Progress Materi (%)": [80, 60, 90, 70],
-            "Tugas Selesai": [3, 2, 4, 3],
-            "Absen (%)": [100, 80, 90, 85]
+            "Nama Siswa": ["Andi", "Citra"],
+            "Kelas": ["Fisika XII"]*4,
+            "Progress Materi (%)": [80, 60],
+            "Tugas Selesai": [3, 2],
+            "Absen (%)": [100, 80]
         })
 
         st.dataframe(data_progress, use_container_width=True)
@@ -107,5 +107,6 @@ elif menu == "🚪 Logout":
 # ---- Footer ----
 st.markdown("---")
 st.caption("COOK LMS | © 2025 Universitas Sriwijaya")
+
 
 
