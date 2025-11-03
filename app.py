@@ -13,38 +13,61 @@ if "role" not in st.session_state:
     st.session_state.role = ""
 if "username" not in st.session_state:
     st.session_state.username = ""
+if "users" not in st.session_state:
+    # Akun default
+    st.session_state.users = {
+        "guru": {"guru123": "Guru Default"},
+        "siswa": {"siswa123": "Siswa Default"}
+    }
 
 # ----------------------------------
-# FUNGSI LOGIN
+# FUNGSI LOGIN / REGISTER
 # ----------------------------------
 def login():
     st.title("🔐 COOK LMS Login")
 
-    role = st.selectbox("Masuk sebagai:", ["Pilih akun", "Guru", "Siswa"])
-    username = st.text_input("Nama pengguna")
-    password = st.text_input("Kata sandi", type="password")
+    tab1, tab2 = st.tabs(["🔑 Masuk", "🆕 Buat Akun"])
 
-    if st.button("Masuk"):
-        if role == "Pilih akun":
-            st.warning("Pilih jenis akun terlebih dahulu.")
-        elif username == "" or password == "":
-            st.warning("Masukkan username dan password.")
-        else:
-            # --- Login sederhana (bisa diganti database) ---
-            if role == "Guru" and password == "guru123":
-                st.session_state.logged_in = True
-                st.session_state.role = "guru"
-                st.session_state.username = username
-                st.success(f"Selamat datang, {username} (Guru)!")
-                st.rerun()
-            elif role == "Siswa" and password == "siswa123":
-                st.session_state.logged_in = True
-                st.session_state.role = "siswa"
-                st.session_state.username = username
-                st.success(f"Selamat datang, {username} (Siswa)!")
-                st.rerun()
+    # ------------------ LOGIN ------------------
+    with tab1:
+        role = st.selectbox("Masuk sebagai:", ["Pilih akun", "Guru", "Siswa"])
+        username = st.text_input("Nama pengguna")
+        password = st.text_input("Kata sandi", type="password")
+
+        if st.button("Masuk"):
+            if role == "Pilih akun":
+                st.warning("Pilih jenis akun terlebih dahulu.")
+            elif username == "" or password == "":
+                st.warning("Masukkan username dan password.")
             else:
-                st.error("Username atau password salah.")
+                # Cek akun di session_state
+                if role.lower() in st.session_state.users and password in st.session_state.users[role.lower()]:
+                    st.session_state.logged_in = True
+                    st.session_state.role = role.lower()
+                    st.session_state.username = st.session_state.users[role.lower()][password]
+                    st.success(f"Selamat datang, {st.session_state.username} ({role})!")
+                    st.rerun()
+                else:
+                    st.error("Username atau password salah.")
+
+    # ------------------ REGISTER ------------------
+    with tab2:
+        role_reg = st.selectbox("Daftar sebagai:", ["Guru", "Siswa"], key="reg_role")
+        nama_reg = st.text_input("Nama Lengkap", key="reg_name")
+        pass_reg = st.text_input("Buat Kata Sandi", type="password", key="reg_pass")
+
+        if st.button("Daftar"):
+            if nama_reg == "" or pass_reg == "":
+                st.warning("Isi semua kolom terlebih dahulu.")
+            else:
+                # Simpan akun baru
+                if pass_reg in st.session_state.users[role_reg.lower()]:
+                    st.error("Kata sandi ini sudah digunakan, buat yang lain.")
+                else:
+                    st.session_state.users[role_reg.lower()][pass_reg] = nama_reg
+                    st.success(f"Akun {role_reg} berhasil dibuat! Silakan login.")
+                    st.info(f"Gunakan kata sandi: **{pass_reg}** untuk login.")
+                    st.rerun()
 
 # ----------------------------------
 # HALAMAN UTAMA LMS
@@ -52,7 +75,6 @@ def login():
 def main_app():
     st.sidebar.title("📚 Navigasi LMS")
 
-    # ✅ Cegah error NoneType pada role.capitalize()
     if st.session_state.role:
         st.sidebar.write(f"👋 Hai, **{st.session_state.username}** ({st.session_state.role.capitalize()})")
     else:
@@ -77,7 +99,7 @@ def main_app():
         st.write("Selamat datang di COOK LMS! 👋")
 
         if st.session_state.role == "guru":
-            st.subheader("👩‍🏫 Student Progress ")
+            st.subheader("👩‍🏫 Student Progress")
             data_progress = pd.DataFrame({
                 "Nama Siswa": ["Andi", "Budi", "Citra", "Dina"],
                 "Kelas": ["Fisika XII"] * 4,
@@ -154,3 +176,4 @@ if not st.session_state.logged_in:
     login()
 else:
     main_app()
+
