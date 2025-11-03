@@ -17,7 +17,7 @@ menu = st.sidebar.radio("Pilih Halaman:", [
 
 # Tampilan halaman
 if menu == "🏠 Dashboard":
-    st.title("Dashboard LMS")
+    st.title("COOK LMS")
     st.write("Selamat datang di COOK LMS!")
 
 elif menu == "👥 Kelas":
@@ -61,3 +61,4 @@ elif menu == "🚪 Logout":
 # (opsional) footer
 st.markdown("---")
 st.caption("COOK | © 2025 Universitas Sriwijaya")
+
