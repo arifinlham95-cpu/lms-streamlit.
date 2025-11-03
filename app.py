@@ -34,7 +34,7 @@ if menu == "🏠 Dashboard":
         # Contoh data progress (bisa diganti dengan data asli dari database)
         data_progress = pd.DataFrame({
             "Nama Siswa": ["Andi", "Budi", "Citra", "Dina"],
-            "Kelas": ["Fisika 1"]*4,
+            "Kelas": ["Fisika XII"]*4,
             "Progress Materi (%)": [80, 60, 90, 70],
             "Tugas Selesai": [3, 2, 4, 3],
             "Absen (%)": [100, 80, 90, 85]
@@ -107,3 +107,4 @@ elif menu == "🚪 Logout":
 # ---- Footer ----
 st.markdown("---")
 st.caption("COOK LMS | © 2025 Universitas Sriwijaya")
+
