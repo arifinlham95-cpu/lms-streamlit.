@@ -1,110 +1,157 @@
 import streamlit as st
 import pandas as pd
 
-# ---- Konfigurasi dasar ----
+# ----------------------------------
+# KONFIGURASI DASAR
+# ----------------------------------
 st.set_page_config(page_title="COOK LMS", layout="wide")
 
-st.sidebar.title("📚 Navigasi LMS")
-menu = st.sidebar.radio("Pilih Halaman:", [
-    "🏠 Dashboard",
-    "👥 Kelas",
-    "📖 Materi",
-    "🧠 Pre-Test",
-    "📝 Tugas",
-    "📄 LKPD",
-    "📅 Absensi",
-    "🚪 Logout"
-])
+# Inisialisasi session state
+if "logged_in" not in st.session_state:
+    st.session_state.logged_in = False
+if "role" not in st.session_state:
+    st.session_state.role = None
+if "username" not in st.session_state:
+    st.session_state.username = ""
 
-# ---- Simulasi role login ----
-# (Nanti bisa diganti dengan data login sebenarnya)
-role = st.session_state.get("role", "guru")  # "guru" atau "siswa"
+# ----------------------------------
+# FUNGSI LOGIN
+# ----------------------------------
+def login():
+    st.title("🔐 COOK LMS Login")
 
-# ---- Tampilan halaman ----
-if menu == "🏠 Dashboard":
-    st.title("COOK LMS")
-    st.write("Selamat datang di COOK LMS! 👋")
+    role = st.selectbox("Masuk sebagai:", ["Pilih akun", "Guru", "Siswa"])
+    username = st.text_input("Nama pengguna")
+    password = st.text_input("Kata sandi", type="password")
 
-    # ----------------------------------------
-    # DASHBOARD GURU
-    # ----------------------------------------
-    if role == "guru":
-        st.subheader("👩‍🏫 Student Progress ")
+    if st.button("Masuk"):
+        if role == "Pilih akun":
+            st.warning("Pilih jenis akun terlebih dahulu.")
+        elif username == "" or password == "":
+            st.warning("Masukkan username dan password.")
+        else:
+            # --- Login sederhana (bisa diganti database) ---
+            if role == "Guru" and password == "guru123":
+                st.session_state.logged_in = True
+                st.session_state.role = "guru"
+                st.session_state.username = username
+                st.success(f"Selamat datang, {username} (Guru)!")
+                st.rerun()
+            elif role == "Siswa" and password == "siswa123":
+                st.session_state.logged_in = True
+                st.session_state.role = "siswa"
+                st.session_state.username = username
+                st.success(f"Selamat datang, {username} (Siswa)!")
+                st.rerun()
+            else:
+                st.error("Username atau password salah.")
 
-        # Contoh data progress (bisa diganti dengan data asli dari database)
-        data_progress = pd.DataFrame({
-            "Nama Siswa": ["Andi", "Budi", "Citra", "Dina"],
-            "Kelas": ["Fisika XII"]*4,
-            "Progress Materi (%)": [80, 60, 90, 70],
-            "Tugas Selesai": [3, 2, 4, 3],
-            "Absen (%)": [100, 80, 90, 85]
-        })
+# ----------------------------------
+# HALAMAN UTAMA LMS
+# ----------------------------------
+def main_app():
+    st.sidebar.title("📚 Navigasi LMS")
+    st.sidebar.write(f"👋 Hai, **{st.session_state.username}** ({st.session_state.role.capitalize()})")
 
-        st.dataframe(data_progress, use_container_width=True)
-        st.success("📊 Berikut perkembangan siswa di kelas Anda.")
+    menu = st.sidebar.radio("Pilih Halaman:", [
+        "🏠 Dashboard",
+        "👥 Kelas",
+        "📖 Materi",
+        "🧠 Pre-Test",
+        "📝 Tugas",
+        "📄 LKPD",
+        "📅 Absensi",
+        "🚪 Logout"
+    ])
 
-    # ----------------------------------------
-    # DASHBOARD SISWA
-    # ----------------------------------------
-    elif role == "siswa":
-        st.subheader("📋 Tugas dan Absensi yang Belum Dikerjakan")
+    # -------------------------------------------------
+    # DASHBOARD
+    # -------------------------------------------------
+    if menu == "🏠 Dashboard":
+        st.title("COOK LMS")
+        st.write("Selamat datang di COOK LMS! 👋")
 
-        col1, col2 = st.columns(2)
-
-        with col1:
-            st.markdown("### 📝 Tugas Belum Dikerjakan")
-            tugas_belum = pd.DataFrame({
-                "Judul Tugas": ["Tugas 1 - Gelombang", "Tugas 2 - Interferensi"],
-                "Deadline": ["10 Nov 2025", "15 Nov 2025"]
+        if st.session_state.role == "guru":
+            st.subheader("👩‍🏫 Student Progress ")
+            data_progress = pd.DataFrame({
+                "Nama Siswa": ["Andi", "Budi", "Citra", "Dina"],
+                "Kelas": ["Fisika XII"]*4,
+                "Progress Materi (%)": [80, 60, 90, 70],
+                "Tugas Selesai": [3, 2, 4, 3],
+                "Absen (%)": [100, 80, 90, 85]
             })
-            st.table(tugas_belum)
-            st.info("Segera kerjakan tugas di menu *Tugas*!")
+            st.dataframe(data_progress, use_container_width=True)
+            st.success("📊 Berikut perkembangan siswa di kelas Anda.")
 
-        with col2:
-            st.markdown("### 📅 Absensi Belum Diisi")
-            absen_belum = pd.DataFrame({
-                "Tanggal": ["01 Nov 2025", "03 Nov 2025"],
-                "Kelas": ["Fisika 1", "Fisika 1"]
-            })
-            st.table(absen_belum)
-            st.warning("Jangan lupa isi absensi di menu *Absensi*!")
+        elif st.session_state.role == "siswa":
+            st.subheader("📋 Tugas dan Absensi yang Belum Dikerjakan")
 
-# ---- Halaman lainnya tetap sama ----
-elif menu == "👥 Kelas":
-    st.title("Kelas")
-    st.info("Daftar kelas dan jadwal perkuliahan.")
-    # tampilkan_kelas()
+            col1, col2 = st.columns(2)
+            with col1:
+                st.markdown("### 📝 Tugas Belum Dikerjakan")
+                tugas_belum = pd.DataFrame({
+                    "Judul Tugas": ["Tugas 1 - Gelombang", "Tugas 2 - Interferensi"],
+                    "Deadline": ["10 Nov 2025", "15 Nov 2025"]
+                })
+                st.table(tugas_belum)
+                st.info("Segera kerjakan tugas di menu *Tugas*!")
 
-elif menu == "📖 Materi":
-    st.title("Materi Pembelajaran")
-    st.info("Materi kuliah yang dapat diakses mahasiswa.")
-    # tampilkan_materi()
+            with col2:
+                st.markdown("### 📅 Absensi Belum Diisi")
+                absen_belum = pd.DataFrame({
+                    "Tanggal": ["01 Nov 2025", "03 Nov 2025"],
+                    "Kelas": ["Fisika 1", "Fisika 1"]
+                })
+                st.table(absen_belum)
+                st.warning("Jangan lupa isi absensi di menu *Absensi*!")
 
-elif menu == "🧠 Pre-Test":
-    st.title("Pre-Test")
-    st.info("Kerjakan pre-test untuk mengukur pemahaman awal.")
-    # tampilkan_pretest()
+    # -------------------------------------------------
+    # FITUR LAIN (SAMA SEPERTI SEBELUMNYA)
+    # -------------------------------------------------
+    elif menu == "👥 Kelas":
+        st.title("Kelas")
+        st.info("Daftar kelas dan jadwal perkuliahan.")
+        # tampilkan_kelas()
 
-elif menu == "📝 Tugas":
-    st.title("Tugas")
-    st.info("Kumpulkan tugas sesuai instruksi dosen.")
-    # tampilkan_tugas()
+    elif menu == "📖 Materi":
+        st.title("Materi Pembelajaran")
+        st.info("Materi kuliah yang dapat diakses mahasiswa.")
+        # tampilkan_materi()
 
-elif menu == "📄 LKPD":
-    st.title("LKPD (Lembar Kerja Peserta Didik)")
-    st.info("Kerjakan LKPD untuk memperdalam pemahaman.")
-    # tampilkan_lkpd()
+    elif menu == "🧠 Pre-Test":
+        st.title("Pre-Test")
+        st.info("Kerjakan pre-test untuk mengukur pemahaman awal.")
+        # tampilkan_pretest()
 
-elif menu == "📅 Absensi":
-    st.title("Absensi")
-    st.info("Isi daftar hadir perkuliahan.")
-    # tampilkan_absensi()
+    elif menu == "📝 Tugas":
+        st.title("Tugas")
+        st.info("Kumpulkan tugas sesuai instruksi dosen.")
+        # tampilkan_tugas()
 
-elif menu == "🚪 Logout":
-    st.warning("Anda telah keluar dari sistem.")
-    # logout_function()
+    elif menu == "📄 LKPD":
+        st.title("LKPD (Lembar Kerja Peserta Didik)")
+        st.info("Kerjakan LKPD untuk memperdalam pemahaman.")
+        # tampilkan_lkpd()
 
-# ---- Footer ----
-st.markdown("---")
-st.caption("COOK LMS | © 2025 Universitas Sriwijaya")
+    elif menu == "📅 Absensi":
+        st.title("Absensi")
+        st.info("Isi daftar hadir perkuliahan.")
+        # tampilkan_absensi()
 
+    elif menu == "🚪 Logout":
+        st.session_state.logged_in = False
+        st.session_state.role = None
+        st.session_state.username = ""
+        st.warning("Anda telah keluar dari sistem.")
+        st.rerun()
+
+    st.markdown("---")
+    st.caption("COOK LMS | © 2025 Universitas Sriwijaya")
+
+# ----------------------------------
+# MAIN CONTROL FLOW
+# ----------------------------------
+if not st.session_state.logged_in:
+    login()
+else:
+    main_app()
