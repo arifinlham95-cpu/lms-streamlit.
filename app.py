@@ -20,8 +20,9 @@ if "users" not in st.session_state:
         "siswa": {"siswa123": "Siswa Default"}
     }
 if "kelas_data" not in st.session_state:
-    # Menyimpan data kelas dan materi
-    st.session_state.kelas_data = {}  # format: {kode_kelas: {"nama":..., "guru":..., "materi": [...], "anggota": [...] }}
+    st.session_state.kelas_data = {}  # {kode_kelas: {"nama":..., "guru":..., "materi": [...], "anggota": [...] }}
+if "test_data" not in st.session_state:
+    st.session_state.test_data = {}  # {kode_test: {"judul":..., "guru":..., "soal": [...], "hasil": {siswa: skor}}}
 
 
 # ----------------------------------
@@ -32,7 +33,6 @@ def login():
 
     tab1, tab2 = st.tabs(["🔑 Masuk", "🆕 Buat Akun"])
 
-    # ------------------ LOGIN ------------------
     with tab1:
         role = st.selectbox("Masuk sebagai:", ["Pilih akun", "Guru", "Siswa"])
         username = st.text_input("Nama pengguna")
@@ -53,7 +53,6 @@ def login():
                 else:
                     st.error("Username atau password salah.")
 
-    # ------------------ REGISTER ------------------
     with tab2:
         role_reg = st.selectbox("Daftar sebagai:", ["Guru", "Siswa"], key="reg_role")
         nama_reg = st.text_input("Nama Lengkap", key="reg_name")
@@ -73,13 +72,12 @@ def login():
 
 
 # ----------------------------------
-# HALAMAN KELAS & MATERI (Gabung)
+# HALAMAN KELAS
 # ----------------------------------
 def halaman_kelas():
     st.title("👥 Kelas dan Materi")
     role = st.session_state.role
 
-    # ================== GURU ==================
     if role == "guru":
         st.subheader("📘 Buat Kelas Baru")
         nama_kelas = st.text_input("Nama Kelas")
@@ -110,7 +108,6 @@ def halaman_kelas():
                     st.markdown(f"👩‍🏫 Guru: **{data['guru']}**")
                     st.markdown(f"👨‍🎓 Jumlah siswa: **{len(data['anggota'])}**")
 
-                    # Tambah materi
                     with st.form(f"form_materi_{kode}"):
                         st.markdown("### ➕ Tambah Materi")
                         judul = st.text_input("Judul Materi", key=f"judul_{kode}")
@@ -130,7 +127,6 @@ def halaman_kelas():
                             st.success("Materi berhasil ditambahkan!")
                             st.rerun()
 
-                    # Daftar materi
                     if data["materi"]:
                         st.markdown("### 📄 Materi di Kelas Ini")
                         for i, m in enumerate(data["materi"]):
@@ -151,21 +147,6 @@ def halaman_kelas():
                     else:
                         st.info("Belum ada materi di kelas ini.")
 
-        # Mode edit materi
-        if "edit_index" in st.session_state:
-            kode, idx = st.session_state.edit_index
-            materi = st.session_state.kelas_data[kode]["materi"][idx]
-            st.sidebar.subheader(f"✏️ Edit Materi ({materi['judul']})")
-            judul_baru = st.sidebar.text_input("Judul Baru", materi["judul"])
-            des_baru = st.sidebar.text_area("Deskripsi Baru", materi["deskripsi"])
-            link_baru = st.sidebar.text_input("Link Video Baru", materi["link_vidio"])
-            if st.sidebar.button("Simpan Perubahan"):
-                materi["judul"], materi["deskripsi"], materi["link_vidio"] = judul_baru, des_baru, link_baru
-                st.success("Materi diperbarui!")
-                del st.session_state.edit_index
-                st.rerun()
-
-    # ================== SISWA ==================
     elif role == "siswa":
         st.subheader("📘 Bergabung ke Kelas")
         kode_gabung = st.text_input("Masukkan Kode Kelas")
@@ -203,46 +184,109 @@ def halaman_kelas():
 
 
 # ----------------------------------
-# HALAMAN UTAMA & MENU LAIN
+# HALAMAN TEST (BARU)
 # ----------------------------------
-def main_app():
-    st.sidebar.title("📚 Navigasi LMS")
+def halaman_test():
+    st.title("🧠 Test (Ujian)")
+    role = st.session_state.role
 
-    if st.session_state.role:
-        st.sidebar.write(f"👋 Hai, **{st.session_state.username}** ({st.session_state.role.capitalize()})")
+    # ----------------- GURU -----------------
+    if role == "guru":
+        st.subheader("📘 Buat Test Baru")
+        judul_test = st.text_input("Judul Test")
+        kode_test = st.text_input("Kode Test (unik)")
+        if st.button("➕ Buat Test"):
+            if not judul_test or not kode_test:
+                st.warning("Isi semua kolom.")
+            elif kode_test in st.session_state.test_data:
+                st.error("Kode test sudah digunakan.")
+            else:
+                st.session_state.test_data[kode_test] = {
+                    "judul": judul_test,
+                    "guru": st.session_state.username,
+                    "soal": [],
+                    "hasil": {}
+                }
+                st.success(f"Test '{judul_test}' berhasil dibuat!")
 
-    menu = st.sidebar.radio("Pilih Halaman:", [
-        "🏠 Dashboard",
-        "👥 Kelas",
-        "🧠 Pre-Test",
-        "📝 Tugas",
-        "📄 LKPD",
-        "📅 Absensi",
-        "🚪 Logout"
-    ])
+        st.divider()
+        st.subheader("📋 Daftar Test Anda")
+        test_guru = {k: v for k, v in st.session_state.test_data.items() if v["guru"] == st.session_state.username}
+        if not test_guru:
+            st.info("Belum ada test yang Anda buat.")
+        else:
+            for kode, data in test_guru.items():
+                with st.expander(f"{data['judul']} ({kode})"):
+                    st.markdown("### ➕ Tambah Soal")
+                    with st.form(f"form_soal_{kode}"):
+                        pertanyaan = st.text_area("Soal", key=f"q_{kode}")
+                        opsi_a = st.text_input("Pilihan A", key=f"a_{kode}")
+                        opsi_b = st.text_input("Pilihan B", key=f"b_{kode}")
+                        opsi_c = st.text_input("Pilihan C", key=f"c_{kode}")
+                        opsi_d = st.text_input("Pilihan D", key=f"d_{kode}")
+                        jawaban_benar = st.selectbox("Jawaban Benar", ["A", "B", "C", "D"], key=f"ans_{kode}")
+                        submit_q = st.form_submit_button("Tambah Soal")
 
-    if menu == "🏠 Dashboard":
-        st.title("COOK LMS")
-        st.write("Selamat datang di COOK LMS! 👋")
+                        if submit_q:
+                            st.session_state.test_data[kode]["soal"].append({
+                                "pertanyaan": pertanyaan,
+                                "opsi": {"A": opsi_a, "B": opsi_b, "C": opsi_c, "D": opsi_d},
+                                "benar": jawaban_benar
+                            })
+                            st.success("Soal ditambahkan!")
+                            st.rerun()
 
-    elif menu == "👥 Kelas":
-        halaman_kelas()
+                    # Tampilkan soal
+                    if data["soal"]:
+                        st.markdown("### 🧾 Daftar Soal")
+                        for i, q in enumerate(data["soal"]):
+                            st.write(f"**{i+1}. {q['pertanyaan']}**")
+                            for huruf, teks in q["opsi"].items():
+                                st.write(f"{huruf}. {teks}")
+                            st.caption(f"✅ Jawaban Benar: {q['benar']}")
+                    else:
+                        st.info("Belum ada soal di test ini.")
 
-    elif menu == "🚪 Logout":
-        st.session_state.logged_in = False
-        st.session_state.role = ""
-        st.session_state.username = ""
-        st.warning("Anda telah keluar.")
-        st.rerun()
+                    # Hasil siswa
+                    if data["hasil"]:
+                        st.markdown("### 📊 Hasil Siswa")
+                        df = pd.DataFrame([
+                            {"Nama Siswa": s, "Nilai": n}
+                            for s, n in data["hasil"].items()
+                        ])
+                        st.dataframe(df, use_container_width=True)
 
-    st.markdown("---")
-    st.caption("COOK LMS | © 2025 Universitas Sriwijaya")
+    # ----------------- SISWA -----------------
+    elif role == "siswa":
+        st.subheader("📘 Kerjakan Test")
+        kode_test = st.text_input("Masukkan Kode Test")
+
+        if st.button("Mulai Test"):
+            if kode_test not in st.session_state.test_data:
+                st.error("Kode test tidak ditemukan.")
+            else:
+                st.session_state.current_test = kode_test
+                st.rerun()
+
+        if "current_test" in st.session_state:
+            kode = st.session_state.current_test
+            data = st.session_state.test_data[kode]
+            st.markdown(f"## {data['judul']}")
+            jawaban_siswa = {}
+            skor = 0
+
+            with st.form("form_test_siswa"):
+                for i, q in enumerate(data["soal"]):
+                    st.markdown(f"**{i+1}. {q['pertanyaan']}**")
+                    jawaban = st.radio(
+                        "Pilih jawaban:",
+                        ["A", "B", "C", "D"],
+                        key=f"ans_{i}",
+                        format_func=lambda x: f"{x}. {q['opsi'][x]}"
+                    )
+                    jawaban_siswa[i] = jawaban
+                submit_test = st.form_submit_button("Kirim Jawaban")
+
+                if submit_test:
 
 
-# ----------------------------------
-# MAIN FLOW
-# ----------------------------------
-if not st.session_state.logged_in:
-    login()
-else:
-    main_app()
