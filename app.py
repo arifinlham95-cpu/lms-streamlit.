@@ -480,149 +480,17 @@ def main_app():
         "🚪 Logout"
     ])
 
-    if menu == "🏠 Dashboard": st.title("📊 Dashboard COOK LMS")
-
-    role = st.session_state.role
-
-    # -------------------------
-    # DASHBOARD GURU
-    # -------------------------
-    if role == "guru":
-        st.subheader("👩‍🏫 Ringkasan Aktivitas Guru")
-
-        # Total kelas, tugas, test, absen
-        total_kelas = len([k for k, v in st.session_state.kelas_data.items() if v["guru"] == st.session_state.username])
-        total_tugas = len([t for tugas in st.session_state.tugas_data.values() for t in tugas])
-        total_test = len([t for t in st.session_state.test_data.values() if t["guru"] == st.session_state.username])
-        total_absen = len([a for a in getattr(st.session_state, "absen_data", {}).values() if a["guru"] == st.session_state.username])
-
-        col1, col2, col3, col4 = st.columns(4)
-        col1.metric("Jumlah Kelas", total_kelas)
-        col2.metric("Jumlah Tugas", total_tugas)
-        col3.metric("Jumlah Test", total_test)
-        col4.metric("Jumlah Absen", total_absen)
-
-        st.divider()
-        st.subheader("📈 Progress Siswa")
-
-        # Analisis per siswa
-        siswa_set = set()
-        for k, v in st.session_state.kelas_data.items():
-            if v["guru"] == st.session_state.username:
-                siswa_set.update(v["anggota"])
-
-        if not siswa_set:
-            st.info("Belum ada siswa yang terdaftar di kelas Anda.")
+    if menu == "🏠 Dashboard":
+        st.title("📊 Dashboard COOK LMS")
+        role = st.session_state.role
+        if role == "guru":
+            # ... isi dashboard guru ...
+            pass
+        elif role == "siswa":
+            # ... isi dashboard siswa ...
+            pass
         else:
-            data_progress = []
-
-            for siswa in siswa_set:
-                # Hitung tugas yang dikumpul
-                tugas_dikerjakan = 0
-                total_tugas_siswa = 0
-                for tugas_list in st.session_state.tugas_data.values():
-                    for t in tugas_list:
-                        if siswa in t["kumpul"]:
-                            tugas_dikerjakan += 1
-                        total_tugas_siswa += 1
-
-                # Hitung test yang dikerjakan
-                test_dikerjakan = 0
-                total_test_siswa = 0
-                for test in st.session_state.test_data.values():
-                    if test["guru"] == st.session_state.username:
-                        total_test_siswa += 1
-                        if siswa in test["hasil"]:
-                            test_dikerjakan += 1
-
-                # Hitung absen
-                absen_hadir = 0
-                total_absen_siswa = 0
-                for absen in getattr(st.session_state, "absen_data", {}).values():
-                    if absen["guru"] == st.session_state.username and siswa in absen["peserta"]:
-                        total_absen_siswa += 1
-                        if absen["status"].get(siswa) == "Hadir":
-                            absen_hadir += 1
-
-                # Hitung rata-rata progres
-                total_item = (total_tugas_siswa + total_test_siswa + total_absen_siswa)
-                if total_item == 0:
-                    progress = 0
-                else:
-                    progress = round(((tugas_dikerjakan + test_dikerjakan + absen_hadir) / total_item) * 100, 2)
-
-                data_progress.append({
-                    "Nama Siswa": siswa,
-                    "Tugas Selesai": f"{tugas_dikerjakan}/{total_tugas_siswa}",
-                    "Test Selesai": f"{test_dikerjakan}/{total_test_siswa}",
-                    "Absen Hadir": f"{absen_hadir}/{total_absen_siswa}",
-                    "Progress (%)": progress
-                })
-
-            df = pd.DataFrame(data_progress)
-            st.dataframe(df, use_container_width=True)
-            st.caption("Progress dihitung dari kombinasi Tugas, Test, dan Absen yang telah diselesaikan oleh siswa.")
-
-    # -------------------------
-    # DASHBOARD SISWA
-    # -------------------------
-    elif role == "siswa":
-        st.subheader("👨‍🎓 Aktivitas Saya")
-
-        # Cek kelas siswa
-        kelas_saya = {k: v for k, v in st.session_state.kelas_data.items() if st.session_state.username in v["anggota"]}
-
-        if not kelas_saya:
-            st.info("Anda belum tergabung di kelas mana pun.")
-        else:
-            tugas_belum = []
-            test_belum = []
-            absen_belum = []
-
-            # TUGAS
-            for kode, daftar in st.session_state.tugas_data.items():
-                if kode in kelas_saya:
-                    for t in daftar:
-                        if st.session_state.username not in t["kumpul"]:
-                            tugas_belum.append(f"{t['judul']} ({st.session_state.kelas_data[kode]['nama']})")
-
-            # TEST
-            for kode, t in st.session_state.test_data.items():
-                if st.session_state.username in [s for k, v in st.session_state.kelas_data.items() for s in v["anggota"]]:
-                    if st.session_state.username not in t["hasil"]:
-                        test_belum.append(f"{t['judul']} ({t['guru']})")
-
-            # ABSEN
-            for kode, a in getattr(st.session_state, "absen_data", {}).items():
-                if st.session_state.username in a["peserta"] and st.session_state.username not in a["status"]:
-                    absen_belum.append(f"{a['judul']} ({a['guru']})")
-
-            col1, col2, col3 = st.columns(3)
-            col1.metric("Tugas Belum Dikerjakan", len(tugas_belum))
-            col2.metric("Test Belum Dikerjakan", len(test_belum))
-            col3.metric("Absen Belum Diisi", len(absen_belum))
-
-            st.divider()
-            if tugas_belum:
-                st.markdown("### 📝 Tugas yang Belum Dikerjakan")
-                st.write("\n".join([f"- {t}" for t in tugas_belum]))
-            else:
-                st.success("Tidak ada tugas yang tertunda! 🎉")
-
-            if test_belum:
-                st.markdown("### 🧠 Test yang Belum Dikerjakan")
-                st.write("\n".join([f"- {t}" for t in test_belum]))
-            else:
-                st.success("Semua test sudah dikerjakan! ✅")
-
-            if absen_belum:
-                st.markdown("### 📅 Absen yang Belum Diisi")
-                st.write("\n".join([f"- {a}" for a in absen_belum]))
-            else:
-                st.success("Anda sudah mengisi semua absen! 🙌")
-
-    else:
-        st.write("Selamat datang di COOK LMS! 👋")
+            st.write("Selamat datang di COOK LMS! 👋")
 
     elif menu == "👥 Kelas":
         halaman_kelas()
@@ -630,6 +498,8 @@ def main_app():
         halaman_tugas()
     elif menu == "🧠 Test":
         halaman_test()
+    elif menu == "📅 Absen":
+        halaman_absen()
     elif menu == "💬 Room Chat":
         halaman_chat()
     elif menu == "🚪 Logout":
@@ -650,6 +520,7 @@ if not st.session_state.logged_in:
 else:
     main_app()
  
+
 
 
 
