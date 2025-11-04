@@ -28,8 +28,6 @@ if "tugas_data" not in st.session_state:
     st.session_state.tugas_data = {}
 if "chat_data" not in st.session_state:
     st.session_state.chat_data = {}
-if "absen_data" not in st.session_state:
-    st.session_state.absen_data = {}
 
 # ----------------------------------
 # FUNGSI LOGIN / REGISTER
@@ -171,20 +169,221 @@ def halaman_kelas():
                             st.info(m["isi"])
 
 # ----------------------------------
-# HALAMAN ABSEN
+# HALAMAN TUGAS
+# ----------------------------------
+def halaman_tugas():
+    st.title("📝 Tugas")
+    role = st.session_state.role
+
+    if role == "guru":
+        st.subheader("📘 Buat Tugas untuk Kelas")
+        kode_kelas = st.selectbox("Pilih Kelas", list(st.session_state.kelas_data.keys()))
+        judul = st.text_input("Judul Tugas")
+        deskripsi = st.text_area("Deskripsi Tugas")
+        dokumen = st.file_uploader("Upload Dokumen (Opsional)", type=["pdf", "docx"])
+        if st.button("📤 Simpan Tugas"):
+            if not judul.strip() or not kode_kelas:
+                st.warning("Isi semua kolom.")
+            else:
+                if kode_kelas not in st.session_state.tugas_data:
+                    st.session_state.tugas_data[kode_kelas] = []
+                st.session_state.tugas_data[kode_kelas].append({
+                    "judul": judul,
+                    "deskripsi": deskripsi,
+                    "dokumen": dokumen.read() if dokumen else None,
+                    "nama_dok": dokumen.name if dokumen else None,
+                    "kumpul": {}
+                })
+                st.success("Tugas berhasil disimpan!")
+
+        st.divider()
+        st.subheader("📋 Daftar Tugas")
+        for kode, daftar in st.session_state.tugas_data.items():
+            st.markdown(f"### 📘 {st.session_state.kelas_data[kode]['nama']}")
+            for i, t in enumerate(daftar):
+                st.write(f"**{i+1}. {t['judul']}**")
+                st.info(t["deskripsi"])
+                if t["dokumen"]:
+                    st.download_button("📄 Unduh Dokumen", t["dokumen"], file_name=t["nama_dok"])
+                if t["kumpul"]:
+                    df = pd.DataFrame([{"Nama Siswa": s, "Tanggal": d} for s, d in t["kumpul"].items()])
+                    st.dataframe(df, use_container_width=True)
+
+    elif role == "siswa":
+        st.subheader("📘 Tugas dari Kelas Anda")
+        kelas_saya = {k: v for k, v in st.session_state.kelas_data.items() if st.session_state.username in v["anggota"]}
+        if not kelas_saya:
+            st.info("Belum ada kelas yang diikuti.")
+        else:
+            for kode, data in kelas_saya.items():
+                if kode not in st.session_state.tugas_data:
+                    continue
+                with st.expander(f"Tugas - {data['nama']}"):
+                    for i, t in enumerate(st.session_state.tugas_data[kode]):
+                        st.write(f"### {t['judul']}")
+                        st.info(t["deskripsi"])
+                        if t["dokumen"]:
+                            st.download_button("📄 Unduh Dokumen", t["dokumen"], file_name=t["nama_dok"])
+                        if st.session_state.username in t["kumpul"]:
+                            st.success("✅ Anda sudah mengumpulkan tugas ini.")
+                        else:
+                            file_tugas = st.file_uploader(f"Upload Tugas Anda (satu kali saja) - {t['judul']}", type=["pdf", "docx"], key=f"upload_{kode}_{i}")
+                            if st.button("Kumpulkan", key=f"kumpul_{kode}_{i}"):
+                                if file_tugas:
+                                    t["kumpul"][st.session_state.username] = str(datetime.datetime.now())
+                                    st.success("Tugas berhasil dikumpulkan!")
+                                    st.rerun()
+                                else:
+                                    st.warning("Pilih file terlebih dahulu.")
+
+# ----------------------------------
+# HALAMAN ROOM CHAT
+# ----------------------------------
+def halaman_chat():
+    st.title("💬 Room Chat")
+    role = st.session_state.role
+
+    kelas_saya = (
+        {k: v for k, v in st.session_state.kelas_data.items() if (v["guru"] == st.session_state.username or st.session_state.username in v["anggota"])}
+    )
+
+    if not kelas_saya:
+        st.info("Belum ada kelas untuk chat.")
+        return
+
+    kode_kelas = st.selectbox("Pilih Kelas", list(kelas_saya.keys()))
+    if kode_kelas not in st.session_state.chat_data:
+        st.session_state.chat_data[kode_kelas] = []
+
+    st.divider()
+    st.subheader(f"💭 Chat Room - {kelas_saya[kode_kelas]['nama']}")
+
+    for chat in st.session_state.chat_data[kode_kelas]:
+        st.markdown(f"**{chat['user']}** ({chat['waktu']}): {chat['pesan']}")
+
+    pesan = st.text_input("Ketik pesan...")
+    if st.button("Kirim"):
+        if pesan.strip():
+            st.session_state.chat_data[kode_kelas].append({
+                "user": st.session_state.username,
+                "pesan": pesan,
+                "waktu": datetime.datetime.now().strftime("%H:%M")
+            })
+            st.rerun()
+
+# ----------------------------------
+# HALAMAN TEST
+# ----------------------------------
+def halaman_test():
+    st.title("🧠 Test (Ujian)")
+    role = st.session_state.role
+
+    if role == "guru":
+        st.subheader("📘 Buat Test Baru")
+        judul_test = st.text_input("Judul Test")
+        kode_test = st.text_input("Kode Test (unik)")
+        if st.button("➕ Buat Test"):
+            if not judul_test or not kode_test:
+                st.warning("Isi semua kolom.")
+            elif kode_test in st.session_state.test_data:
+                st.error("Kode test sudah digunakan.")
+            else:
+                st.session_state.test_data[kode_test] = {
+                    "judul": judul_test,
+                    "guru": st.session_state.username,
+                    "soal": [],
+                    "hasil": {}
+                }
+                st.success(f"Test '{judul_test}' berhasil dibuat!")
+
+        st.divider()
+        st.subheader("📋 Daftar Test Anda")
+        test_guru = {k: v for k, v in st.session_state.test_data.items() if v["guru"] == st.session_state.username}
+        if not test_guru:
+            st.info("Belum ada test yang Anda buat.")
+        else:
+            for kode, data in test_guru.items():
+                with st.expander(f"{data['judul']} ({kode})"):
+                    st.markdown("### ➕ Tambah Soal")
+                    with st.form(f"form_soal_{kode}"):
+                        pertanyaan = st.text_area("Soal", key=f"q_{kode}")
+                        opsi_a = st.text_input("Pilihan A", key=f"a_{kode}")
+                        opsi_b = st.text_input("Pilihan B", key=f"b_{kode}")
+                        opsi_c = st.text_input("Pilihan C", key=f"c_{kode}")
+                        opsi_d = st.text_input("Pilihan D", key=f"d_{kode}")
+                        jawaban_benar = st.selectbox("Jawaban Benar", ["A", "B", "C", "D"], key=f"ans_{kode}")
+                        submit_q = st.form_submit_button("Tambah Soal")
+
+                        if submit_q:
+                            st.session_state.test_data[kode]["soal"].append({
+                                "pertanyaan": pertanyaan,
+                                "opsi": {"A": opsi_a, "B": opsi_b, "C": opsi_c, "D": opsi_d},
+                                "benar": jawaban_benar
+                            })
+                            st.success("Soal ditambahkan!")
+                            st.rerun()
+
+                    if data["hasil"]:
+                        st.markdown("### 📊 Hasil Siswa")
+                        df = pd.DataFrame([{"Nama Siswa": s, "Nilai": n} for s, n in data["hasil"].items()])
+                        st.dataframe(df, use_container_width=True)
+
+    elif role == "siswa":
+        st.subheader("📘 Kerjakan Test")
+        kode_test = st.text_input("Masukkan Kode Test")
+
+        if st.button("Mulai Test"):
+            if kode_test not in st.session_state.test_data:
+                st.error("Kode test tidak ditemukan.")
+            elif st.session_state.username in st.session_state.test_data[kode_test]["hasil"]:
+                st.warning("Anda sudah mengerjakan test ini.")
+            else:
+                st.session_state.current_test = kode_test
+                st.rerun()
+
+        if "current_test" in st.session_state:
+            kode = st.session_state.current_test
+            data = st.session_state.test_data[kode]
+            st.markdown(f"## {data['judul']}")
+            jawaban_siswa = {}
+
+            with st.form("form_test_siswa"):
+                for i, q in enumerate(data["soal"]):
+                    st.markdown(f"**{i+1}. {q['pertanyaan']}**")
+                    jawaban = st.radio(
+                        "Pilih jawaban:",
+                        ["A", "B", "C", "D"],
+                        key=f"ans_{i}",
+                        format_func=lambda x: f"{x}. {q['opsi'][x]}"
+                    )
+                    jawaban_siswa[i] = jawaban
+
+                submit_test = st.form_submit_button("Kirim Jawaban")
+
+                if submit_test:
+                    skor = sum(1 for i, q in enumerate(data["soal"]) if jawaban_siswa[i] == q["benar"])
+                    nilai = round((skor / len(data["soal"])) * 100, 2)
+                    st.success(f"🎉 Tes selesai! Nilai Anda: {nilai}")
+                    st.session_state.test_data[kode]["hasil"][st.session_state.username] = nilai
+                    del st.session_state.current_test
+                    st.rerun()
+
+
+# ----------------------------------
+# HALAMAN ABSEN (FITUR BARU)
 # ----------------------------------
 def halaman_absen():
     st.title("📅 Absen")
     role = st.session_state.role
 
-    # ---------------------------
-    # GURU
-    # ---------------------------
+    # ----------------------------
+    # AKUN GURU
+    # ----------------------------
     if role == "guru":
         st.subheader("🆕 Buat Absen Baru")
         judul = st.text_input("Judul Absen")
         kode_absen = st.text_input("Kode Absen (unik)")
-        tanggal_mulai = st.date_input("Tanggal Mulai Absen", datetime.date.today())
+        tanggal = datetime.date.today()
 
         if st.button("📌 Buat Absen"):
             if not judul or not kode_absen:
@@ -192,6 +391,7 @@ def halaman_absen():
             elif kode_absen in st.session_state.absen_data:
                 st.error("Kode absen sudah digunakan.")
             else:
+                # Ambil semua siswa di kelas guru
                 peserta = []
                 for k, v in st.session_state.kelas_data.items():
                     if v["guru"] == st.session_state.username:
@@ -200,60 +400,68 @@ def halaman_absen():
                 st.session_state.absen_data[kode_absen] = {
                     "judul": judul,
                     "guru": st.session_state.username,
-                    "tanggal": tanggal_mulai,
+                    "tanggal": tanggal,
                     "peserta": list(set(peserta)),
                     "status": {}
                 }
-                st.success("Absen berhasil dibuat!")
+                st.success("✅ Absen berhasil dibuat!")
 
         st.divider()
-        st.subheader("📋 Daftar Absen")
+        st.subheader("📋 Daftar Absen Anda")
+
         absen_guru = {k: v for k, v in st.session_state.absen_data.items() if v["guru"] == st.session_state.username}
         if not absen_guru:
-            st.info("Belum ada absen.")
+            st.info("Belum ada absen yang Anda buat.")
         else:
+            today = datetime.date.today()
             for kode, data in absen_guru.items():
                 batas = data["tanggal"] + datetime.timedelta(days=1)
+                if today > batas:
+                    # Otomatis menandai siswa yang belum absen
+                    for s in data["peserta"]:
+                        if s not in data["status"]:
+                            data["status"][s] = "Tidak Hadir"
+
                 with st.expander(f"{data['judul']} ({kode}) - {data['tanggal']}"):
                     st.markdown(f"🕒 Berlaku sampai: {batas}")
                     df = pd.DataFrame(
-                        [{"Nama Siswa": s, "Status": data['status'].get(s, "❌ Tidak Hadir" if datetime.date.today() > batas else "Belum Absen")}
-                         for s in data["peserta"]]
+                        [{"Nama Siswa": s, "Status": data['status'].get(s, '❌ Belum Absen')} for s in data["peserta"]]
                     )
                     st.dataframe(df, use_container_width=True)
 
-    # ---------------------------
-    # SISWA
-    # ---------------------------
+    # ----------------------------
+    # AKUN SISWA
+    # ----------------------------
     elif role == "siswa":
-        st.subheader("📅 Absen yang Bisa Diisi")
+        st.subheader("📅 Daftar Absen Aktif")
         today = datetime.date.today()
+
         absen_aktif = {
             k: v for k, v in st.session_state.absen_data.items()
-            if st.session_state.username in v["peserta"] and today <= v["tanggal"] + datetime.timedelta(days=1)
+            if st.session_state.username in v["peserta"]
         }
 
         if not absen_aktif:
-            st.info("Tidak ada absen aktif.")
+            st.info("Belum ada absen aktif.")
         else:
             for kode, data in absen_aktif.items():
                 batas = data["tanggal"] + datetime.timedelta(days=1)
-                with st.expander(f"{data['judul']} ({kode}) - Berlaku sampai {batas}"):
-                    if st.session_state.username in data["status"]:
-                        st.success(f"Anda sudah absen: {data['status'][st.session_state.username]}")
-                    elif today > batas:
-                        st.error("Waktu absen sudah habis, status Anda: ❌ Tidak Hadir")
-                    else:
-                        status = st.radio("Pilih Kehadiran:", ["Hadir", "Sakit"], key=f"absen_{kode}")
-                        if st.button("Kirim", key=f"kirim_{kode}"):
-                            data["status"][st.session_state.username] = status
-                            st.success("Absen berhasil dikirim!")
-                            st.rerun()
+                if today > batas and st.session_state.username not in data["status"]:
+                    data["status"][st.session_state.username] = "Tidak Hadir"
 
-# ----------------------------------
-# HALAMAN LAIN (TUGAS, TEST, CHAT)
-# ----------------------------------
-# (kode halaman_tugas, halaman_test, dan halaman_chat tetap sama seperti versi kamu sebelumnya)
+                with st.expander(f"{data['judul']} ({kode}) - {data['tanggal']}"):
+                    if today <= batas:
+                        if st.session_state.username in data["status"]:
+                            st.success(f"Anda sudah absen: {data['status'][st.session_state.username]}")
+                        else:
+                            status = st.radio("Pilih Kehadiran:", ["Hadir", "Sakit"], key=f"absen_{kode}")
+                            if st.button("Kirim", key=f"kirim_{kode}"):
+                                data["status"][st.session_state.username] = status
+                                st.success("✅ Absen berhasil dikirim!")
+                                st.rerun()
+                    else:
+                        st.warning("Waktu absen telah berakhir.")
+                        st.info(f"Status Anda: {data['status'].get(st.session_state.username, 'Tidak Hadir')}")
 
 # ----------------------------------
 # MAIN CONTROL
@@ -281,8 +489,6 @@ def main_app():
         halaman_tugas()
     elif menu == "🧠 Test":
         halaman_test()
-    elif menu == "📅 Absen":
-        halaman_absen()
     elif menu == "💬 Room Chat":
         halaman_chat()
     elif menu == "🚪 Logout":
@@ -302,3 +508,4 @@ if not st.session_state.logged_in:
     login()
 else:
     main_app()
+ 
