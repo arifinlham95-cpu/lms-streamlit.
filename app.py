@@ -1,5 +1,6 @@
 import streamlit as st
 import pandas as pd
+import datetime
 
 # ----------------------------------
 # KONFIGURASI DASAR
@@ -23,6 +24,10 @@ if "kelas_data" not in st.session_state:
     st.session_state.kelas_data = {}
 if "test_data" not in st.session_state:
     st.session_state.test_data = {}
+if "tugas_data" not in st.session_state:
+    st.session_state.tugas_data = {}
+if "chat_data" not in st.session_state:
+    st.session_state.chat_data = {}
 
 # ----------------------------------
 # FUNGSI LOGIN / REGISTER
@@ -106,74 +111,25 @@ def halaman_kelas():
                     st.markdown(f"👩‍🏫 Guru: **{data['guru']}**")
                     st.markdown(f"👨‍🎓 Jumlah siswa: **{len(data['anggota'])}**")
 
-                    st.markdown("### ✏️ Tambah Materi (Urutan Bebas, Banyak Item)")
+                    st.markdown("### ✏️ Tambah Materi")
                     with st.form(f"form_materi_{kode}"):
                         judul = st.text_input("Judul Materi", key=f"judul_{kode}")
-                        st.caption("Tambahkan isi materi sesuai urutan yang Anda inginkan:")
+                        isi = st.text_area("Isi Materi")
+                        submit = st.form_submit_button("📥 Simpan Materi")
 
-                        jumlah_item = st.number_input("Jumlah bagian materi", min_value=1, max_value=20, value=1, key=f"jumlah_{kode}")
-                        materi_isi = []
-
-                        for i in range(int(jumlah_item)):
-                            st.markdown(f"#### Bagian {i+1}")
-                            tipe = st.selectbox(
-                                f"Pilih jenis isi ke-{i+1}:",
-                                ["Teks", "Video", "Gambar", "Dokumen"],
-                                key=f"tipe_{kode}_{i}"
-                            )
-
-                            if tipe == "Teks":
-                                teks = st.text_area("Isi teks:", key=f"teks_{kode}_{i}")
-                                if teks.strip():
-                                    materi_isi.append({"tipe": "teks", "konten": teks})
-
-                            elif tipe == "Video":
-                                vidio = st.text_input("Link video (YouTube):", key=f"vid_{kode}_{i}")
-                                if vidio.strip():
-                                    materi_isi.append({"tipe": "video", "konten": vidio})
-
-                            elif tipe == "Gambar":
-                                foto = st.file_uploader("Upload gambar:", type=["jpg", "png"], key=f"foto_{kode}_{i}")
-                                if foto:
-                                    materi_isi.append({"tipe": "gambar", "konten": foto.read(), "nama": foto.name})
-
-                            elif tipe == "Dokumen":
-                                dok = st.file_uploader("Upload dokumen:", type=["pdf", "docx", "pptx"], key=f"dok_{kode}_{i}")
-                                if dok:
-                                    materi_isi.append({"tipe": "dokumen", "konten": dok.read(), "nama": dok.name})
-
-                        submitted = st.form_submit_button("📥 Simpan Materi")
-
-                        if submitted:
-                            if not judul.strip():
-                                st.warning("Judul materi harus diisi.")
-                            elif not materi_isi:
-                                st.warning("Tambahkan minimal satu bagian isi materi.")
+                        if submit:
+                            if not judul.strip() or not isi.strip():
+                                st.warning("Isi semua kolom.")
                             else:
-                                st.session_state.kelas_data[kode]["materi"].append({
-                                    "judul": judul,
-                                    "isi": materi_isi
-                                })
-                                st.success("Materi berhasil disimpan dengan urutan bebas dan banyak item!")
+                                st.session_state.kelas_data[kode]["materi"].append({"judul": judul, "isi": isi})
+                                st.success("Materi berhasil disimpan!")
                                 st.rerun()
 
                     if data["materi"]:
                         st.markdown("### 📄 Materi di Kelas Ini")
                         for i, m in enumerate(data["materi"]):
-                            st.markdown(f"**{i+1}. {m['judul']}**")
-                            for bagian in m["isi"]:
-                                if bagian["tipe"] == "teks":
-                                    st.write(bagian["konten"])
-                                elif bagian["tipe"] == "video":
-                                    st.video(bagian["konten"])
-                                elif bagian["tipe"] == "gambar":
-                                    st.image(bagian["konten"], caption=bagian.get("nama", "Gambar"))
-                                elif bagian["tipe"] == "dokumen":
-                                    st.download_button(
-                                        label=f"📄 Unduh {bagian['nama']}",
-                                        data=bagian["konten"],
-                                        file_name=bagian["nama"]
-                                    )
+                            st.write(f"**{i+1}. {m['judul']}**")
+                            st.info(m["isi"])
                             if st.button("🗑️ Hapus Materi", key=f"hapus_{kode}_{i}"):
                                 st.session_state.kelas_data[kode]["materi"].pop(i)
                                 st.success("Materi dihapus.")
@@ -210,19 +166,110 @@ def halaman_kelas():
                     else:
                         for m in data["materi"]:
                             st.markdown(f"### 📄 {m['judul']}")
-                            for bagian in m["isi"]:
-                                if bagian["tipe"] == "teks":
-                                    st.write(bagian["konten"])
-                                elif bagian["tipe"] == "video":
-                                    st.video(bagian["konten"])
-                                elif bagian["tipe"] == "gambar":
-                                    st.image(bagian["konten"], caption=bagian.get("nama", "Gambar"))
-                                elif bagian["tipe"] == "dokumen":
-                                    st.download_button(
-                                        label=f"📄 Unduh {bagian['nama']}",
-                                        data=bagian["konten"],
-                                        file_name=bagian["nama"]
-                                    )
+                            st.info(m["isi"])
+
+# ----------------------------------
+# HALAMAN TUGAS
+# ----------------------------------
+def halaman_tugas():
+    st.title("📝 Tugas")
+    role = st.session_state.role
+
+    if role == "guru":
+        st.subheader("📘 Buat Tugas untuk Kelas")
+        kode_kelas = st.selectbox("Pilih Kelas", list(st.session_state.kelas_data.keys()))
+        judul = st.text_input("Judul Tugas")
+        deskripsi = st.text_area("Deskripsi Tugas")
+        dokumen = st.file_uploader("Upload Dokumen (Opsional)", type=["pdf", "docx"])
+        if st.button("📤 Simpan Tugas"):
+            if not judul.strip() or not kode_kelas:
+                st.warning("Isi semua kolom.")
+            else:
+                if kode_kelas not in st.session_state.tugas_data:
+                    st.session_state.tugas_data[kode_kelas] = []
+                st.session_state.tugas_data[kode_kelas].append({
+                    "judul": judul,
+                    "deskripsi": deskripsi,
+                    "dokumen": dokumen.read() if dokumen else None,
+                    "nama_dok": dokumen.name if dokumen else None,
+                    "kumpul": {}
+                })
+                st.success("Tugas berhasil disimpan!")
+
+        st.divider()
+        st.subheader("📋 Daftar Tugas")
+        for kode, daftar in st.session_state.tugas_data.items():
+            st.markdown(f"### 📘 {st.session_state.kelas_data[kode]['nama']}")
+            for i, t in enumerate(daftar):
+                st.write(f"**{i+1}. {t['judul']}**")
+                st.info(t["deskripsi"])
+                if t["dokumen"]:
+                    st.download_button("📄 Unduh Dokumen", t["dokumen"], file_name=t["nama_dok"])
+                if t["kumpul"]:
+                    df = pd.DataFrame([{"Nama Siswa": s, "Tanggal": d} for s, d in t["kumpul"].items()])
+                    st.dataframe(df, use_container_width=True)
+
+    elif role == "siswa":
+        st.subheader("📘 Tugas dari Kelas Anda")
+        kelas_saya = {k: v for k, v in st.session_state.kelas_data.items() if st.session_state.username in v["anggota"]}
+        if not kelas_saya:
+            st.info("Belum ada kelas yang diikuti.")
+        else:
+            for kode, data in kelas_saya.items():
+                if kode not in st.session_state.tugas_data:
+                    continue
+                with st.expander(f"Tugas - {data['nama']}"):
+                    for i, t in enumerate(st.session_state.tugas_data[kode]):
+                        st.write(f"### {t['judul']}")
+                        st.info(t["deskripsi"])
+                        if t["dokumen"]:
+                            st.download_button("📄 Unduh Dokumen", t["dokumen"], file_name=t["nama_dok"])
+                        if st.session_state.username in t["kumpul"]:
+                            st.success("✅ Anda sudah mengumpulkan tugas ini.")
+                        else:
+                            file_tugas = st.file_uploader(f"Upload Tugas Anda (satu kali saja) - {t['judul']}", type=["pdf", "docx"], key=f"upload_{kode}_{i}")
+                            if st.button("Kumpulkan", key=f"kumpul_{kode}_{i}"):
+                                if file_tugas:
+                                    t["kumpul"][st.session_state.username] = str(datetime.datetime.now())
+                                    st.success("Tugas berhasil dikumpulkan!")
+                                    st.rerun()
+                                else:
+                                    st.warning("Pilih file terlebih dahulu.")
+
+# ----------------------------------
+# HALAMAN ROOM CHAT
+# ----------------------------------
+def halaman_chat():
+    st.title("💬 Room Chat")
+    role = st.session_state.role
+
+    kelas_saya = (
+        {k: v for k, v in st.session_state.kelas_data.items() if (v["guru"] == st.session_state.username or st.session_state.username in v["anggota"])}
+    )
+
+    if not kelas_saya:
+        st.info("Belum ada kelas untuk chat.")
+        return
+
+    kode_kelas = st.selectbox("Pilih Kelas", list(kelas_saya.keys()))
+    if kode_kelas not in st.session_state.chat_data:
+        st.session_state.chat_data[kode_kelas] = []
+
+    st.divider()
+    st.subheader(f"💭 Chat Room - {kelas_saya[kode_kelas]['nama']}")
+
+    for chat in st.session_state.chat_data[kode_kelas]:
+        st.markdown(f"**{chat['user']}** ({chat['waktu']}): {chat['pesan']}")
+
+    pesan = st.text_input("Ketik pesan...")
+    if st.button("Kirim"):
+        if pesan.strip():
+            st.session_state.chat_data[kode_kelas].append({
+                "user": st.session_state.username,
+                "pesan": pesan,
+                "waktu": datetime.datetime.now().strftime("%H:%M")
+            })
+            st.rerun()
 
 # ----------------------------------
 # HALAMAN TEST
@@ -276,22 +323,9 @@ def halaman_test():
                             st.success("Soal ditambahkan!")
                             st.rerun()
 
-                    if data["soal"]:
-                        st.markdown("### 🧾 Daftar Soal")
-                        for i, q in enumerate(data["soal"]):
-                            st.write(f"**{i+1}. {q['pertanyaan']}**")
-                            for huruf, teks in q["opsi"].items():
-                                st.write(f"{huruf}. {teks}")
-                            st.caption(f"✅ Jawaban Benar: {q['benar']}")
-                    else:
-                        st.info("Belum ada soal di test ini.")
-
                     if data["hasil"]:
                         st.markdown("### 📊 Hasil Siswa")
-                        df = pd.DataFrame([
-                            {"Nama Siswa": s, "Nilai": n}
-                            for s, n in data["hasil"].items()
-                        ])
+                        df = pd.DataFrame([{"Nama Siswa": s, "Nilai": n} for s, n in data["hasil"].items()])
                         st.dataframe(df, use_container_width=True)
 
     elif role == "siswa":
@@ -301,6 +335,8 @@ def halaman_test():
         if st.button("Mulai Test"):
             if kode_test not in st.session_state.test_data:
                 st.error("Kode test tidak ditemukan.")
+            elif st.session_state.username in st.session_state.test_data[kode_test]["hasil"]:
+                st.warning("Anda sudah mengerjakan test ini.")
             else:
                 st.session_state.current_test = kode_test
                 st.rerun()
@@ -337,26 +373,28 @@ def halaman_test():
 # ----------------------------------
 def main_app():
     st.sidebar.title("📚 Navigasi LMS")
-    if st.session_state.role:
-        st.sidebar.write(f"👋 Hai, **{st.session_state.username}** ({st.session_state.role.capitalize()})")
+    st.sidebar.write(f"👋 Hai, **{st.session_state.username}** ({st.session_state.role.capitalize()})")
 
     menu = st.sidebar.radio("Pilih Halaman:", [
         "🏠 Dashboard",
         "👥 Kelas",
+        "📝 Tugas",
         "🧠 Test",
+        "💬 Room Chat",
         "🚪 Logout"
     ])
 
     if menu == "🏠 Dashboard":
         st.title("COOK LMS")
         st.write("Selamat datang di COOK LMS! 👋")
-
     elif menu == "👥 Kelas":
         halaman_kelas()
-
+    elif menu == "📝 Tugas":
+        halaman_tugas()
     elif menu == "🧠 Test":
         halaman_test()
-
+    elif menu == "💬 Room Chat":
+        halaman_chat()
     elif menu == "🚪 Logout":
         st.session_state.logged_in = False
         st.session_state.role = ""
@@ -374,5 +412,4 @@ if not st.session_state.logged_in:
     login()
 else:
     main_app()
-
 
