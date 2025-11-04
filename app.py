@@ -1,6 +1,38 @@
 import streamlit as st
 import pandas as pd
 import datetime
+import json
+import os
+
+# ----------------------------------
+# UTILITAS PENYIMPANAN DATA
+# ----------------------------------
+
+DATA_FILE = "lms_data.json"
+
+def save_data():
+    data = {
+        "users": st.session_state.users,
+        "kelas_data": st.session_state.kelas_data,
+        "tugas_data": st.session_state.tugas_data,
+        "test_data": st.session_state.test_data,
+        "chat_data": st.session_state.chat_data,
+        "absen_data": st.session_state.get("absen_data", {})
+    }
+    with open(DATA_FILE, "w") as f:
+        json.dump(data, f, indent=4)
+
+def load_data():
+    if os.path.exists(DATA_FILE):
+        with open(DATA_FILE, "r") as f:
+            data = json.load(f)
+            st.session_state.users = data.get("users", {})
+            st.session_state.kelas_data = data.get("kelas_data", {})
+            st.session_state.tugas_data = data.get("tugas_data", {})
+            st.session_state.test_data = data.get("test_data", {})
+            st.session_state.chat_data = data.get("chat_data", {})
+            st.session_state.absen_data = data.get("absen_data", {})
+
 
 # ----------------------------------
 # KONFIGURASI DASAR
@@ -520,6 +552,7 @@ if not st.session_state.logged_in:
 else:
     main_app()
  
+
 
 
 
