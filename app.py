@@ -106,30 +106,38 @@ def halaman_kelas():
                     st.markdown(f"👩‍🏫 Guru: **{data['guru']}**")
                     st.markdown(f"👨‍🎓 Jumlah siswa: **{len(data['anggota'])}**")
 
-                    st.markdown("### ✏️ Tambah Materi (Urutan Bebas)")
+                    st.markdown("### ✏️ Tambah Materi (Urutan Bebas, Banyak Item)")
                     with st.form(f"form_materi_{kode}"):
                         judul = st.text_input("Judul Materi", key=f"judul_{kode}")
-                        st.caption("Tambahkan isi materi secara fleksibel sesuai urutan yang Anda inginkan:")
-                        item_urutan = st.multiselect(
-                            "Pilih urutan isi materi:",
-                            ["Teks", "Video", "Gambar", "Dokumen"],
-                            default=["Teks"]
-                        )
+                        st.caption("Tambahkan isi materi sesuai urutan yang Anda inginkan:")
 
+                        jumlah_item = st.number_input("Jumlah bagian materi", min_value=1, max_value=20, value=1, key=f"jumlah_{kode}")
                         materi_isi = []
-                        for i, jenis in enumerate(item_urutan):
-                            st.markdown(f"#### {i+1}. {jenis}")
-                            if jenis == "Teks":
+
+                        for i in range(int(jumlah_item)):
+                            st.markdown(f"#### Bagian {i+1}")
+                            tipe = st.selectbox(
+                                f"Pilih jenis isi ke-{i+1}:",
+                                ["Teks", "Video", "Gambar", "Dokumen"],
+                                key=f"tipe_{kode}_{i}"
+                            )
+
+                            if tipe == "Teks":
                                 teks = st.text_area("Isi teks:", key=f"teks_{kode}_{i}")
-                                materi_isi.append({"tipe": "teks", "konten": teks})
-                            elif jenis == "Video":
+                                if teks.strip():
+                                    materi_isi.append({"tipe": "teks", "konten": teks})
+
+                            elif tipe == "Video":
                                 vidio = st.text_input("Link video (YouTube):", key=f"vid_{kode}_{i}")
-                                materi_isi.append({"tipe": "video", "konten": vidio})
-                            elif jenis == "Gambar":
+                                if vidio.strip():
+                                    materi_isi.append({"tipe": "video", "konten": vidio})
+
+                            elif tipe == "Gambar":
                                 foto = st.file_uploader("Upload gambar:", type=["jpg", "png"], key=f"foto_{kode}_{i}")
                                 if foto:
                                     materi_isi.append({"tipe": "gambar", "konten": foto.read(), "nama": foto.name})
-                            elif jenis == "Dokumen":
+
+                            elif tipe == "Dokumen":
                                 dok = st.file_uploader("Upload dokumen:", type=["pdf", "docx", "pptx"], key=f"dok_{kode}_{i}")
                                 if dok:
                                     materi_isi.append({"tipe": "dokumen", "konten": dok.read(), "nama": dok.name})
@@ -137,12 +145,17 @@ def halaman_kelas():
                         submitted = st.form_submit_button("📥 Simpan Materi")
 
                         if submitted:
-                            st.session_state.kelas_data[kode]["materi"].append({
-                                "judul": judul,
-                                "isi": materi_isi
-                            })
-                            st.success("Materi berhasil disimpan dengan urutan bebas!")
-                            st.rerun()
+                            if not judul.strip():
+                                st.warning("Judul materi harus diisi.")
+                            elif not materi_isi:
+                                st.warning("Tambahkan minimal satu bagian isi materi.")
+                            else:
+                                st.session_state.kelas_data[kode]["materi"].append({
+                                    "judul": judul,
+                                    "isi": materi_isi
+                                })
+                                st.success("Materi berhasil disimpan dengan urutan bebas dan banyak item!")
+                                st.rerun()
 
                     if data["materi"]:
                         st.markdown("### 📄 Materi di Kelas Ini")
@@ -361,4 +374,5 @@ if not st.session_state.logged_in:
     login()
 else:
     main_app()
+
 
