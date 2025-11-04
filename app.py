@@ -480,8 +480,7 @@ def main_app():
         "🚪 Logout"
     ])
 
-    if menu == "🏠 Dashboard":
-    st.title("📊 Dashboard COOK LMS")
+    if menu == "🏠 Dashboard": st.title("📊 Dashboard COOK LMS")
 
     role = st.session_state.role
 
@@ -651,5 +650,6 @@ if not st.session_state.logged_in:
 else:
     main_app()
  
+
 
 
