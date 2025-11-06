@@ -189,34 +189,34 @@ def halaman_kelas():
                 save_data()
                 st.success("Materi berhasil disimpan!")
                 st.rerun()
-
-
-                    if data["materi"]:
-                        st.markdown("### 📄 Materi di Kelas Ini")
-                        for i, m in enumerate(data["materi"]):
-                            st.write(f"**{i+1}. {m['judul']}**")
-                            for item in m.get("konten", []):
-                                if item["tipe"] == "text":
-                                    st.markdown(item["isi"])
-                                elif item["tipe"] == "image":
-                                    st.image(item["data"], caption=item["nama"], use_container_width=True)
-                                elif item["tipe"] == "video":
-                                    st.video(item["data"])
-                                elif item["tipe"] == "file":
-                                    st.download_button(
-                                        label=f"📄 Unduh {item['nama']}",
-                                        data=item["data"],
-                                        file_name=item["nama"],
-                                        mime="application/octet-stream",
-                                        key=f"unduh_{kode}_{i}_{item['nama']}"
-                                    )
-
-                            if st.button("🗑️ Hapus Materi", key=f"hapus_{kode}_{i}"):
-                                st.session_state.kelas_data[kode]["materi"].pop(i)
-                                st.success("Materi dihapus.")
-                                st.rerun()
-                    else:
-                        st.info("Belum ada materi di kelas ini.")
+                
+            if data["materi"]:
+                st.markdown("### 📄 Materi di Kelas Ini")
+                for i, m in enumerate(data["materi"]):
+                    st.write(f"**{i+1}. {m['judul']}**")
+                    for item in m.get("konten", []):
+                        if item["tipe"] == "text":
+                            st.markdown(item["isi"])
+                        elif item["tipe"] == "image":
+                            st.image(item["data"], caption=item["nama"], use_container_width=True)
+                        elif item["tipe"] == "video":
+                            st.video(item["data"])
+                        elif item["tipe"] == "file":
+                            st.download_button(
+                                label=f"📄 Unduh {item['nama']}",
+                                data=item["data"],
+                                file_name=item["nama"],
+                                mime="application/octet-stream",
+                                key=f"unduh_{kode}_{i}_{item['nama']}"
+                            )
+                        
+                    if st.button("🗑️ Hapus Materi", key=f"hapus_{kode}_{i}"):
+                        st.session_state.kelas_data[kode]["materi"].pop(i)
+                        st.success("Materi dihapus.")
+                        st.rerun()
+                    
+            else:
+                st.info("Belum ada materi di kelas ini.")
 
     elif role == "siswa":
         st.subheader("📘 Bergabung ke Kelas")
@@ -601,6 +601,7 @@ if not st.session_state.logged_in:
 else:
     main_app()
  
+
 
 
 
