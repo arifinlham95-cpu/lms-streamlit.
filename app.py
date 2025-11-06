@@ -156,12 +156,22 @@ def halaman_kelas():
                     st.markdown(f"👨‍🎓 Jumlah siswa: **{len(data['anggota'])}**")
 
                     st.markdown("### ✏️ Tambah Materi (Teks, Gambar, Video, Dokumen)")
+                    
                     with st.form(f"form_materi_{kode}"):
                         judul = st.text_input("Judul Materi", key=f"judul_{kode}")
                         teks_materi = st.text_area("Tambahkan teks materi (opsional)", key=f"teks_{kode}")
                         gambar_files = st.file_uploader("Upload Gambar (opsional, bisa lebih dari 1)", type=["jpg", "jpeg", "png"], accept_multiple_files=True, key=f"gambar_{kode}")
                         video_files = st.file_uploader("Upload Video (opsional, bisa lebih dari 1)", type=["mp4", "mov"], accept_multiple_files=True, key=f"video_{kode}")
+                        youtube_link = st.text_input("Tambahkan Link YouTube (opsional)", key=f"yt_{kode}")
                         dokumen_files = st.file_uploader("Upload Dokumen (opsional, bisa lebih dari 1)", type=["pdf", "docx", "pptx"], accept_multiple_files=True, key=f"dokumen_{kode}")
+
+                        st.markdown("### 🧩 Urutan Konten")
+                        urutan = st.multiselect(
+                            "Pilih dan urutkan jenis konten yang ingin ditampilkan:",
+                            ["Teks", "Gambar", "Video", "YouTube", "Dokumen"],
+                            default=["Teks", "Gambar", "Video", "Dokumen"]
+                        )
+                        
                         submit = st.form_submit_button("📥 Simpan Materi")
 
     if submit:
@@ -169,18 +179,27 @@ def halaman_kelas():
             st.warning("Isi judul materi terlebih dahulu.")
         else:
             konten = []
-            if teks_materi.strip():
-                konten.append({"tipe": "text", "isi": teks_materi})
-
-            for g in gambar_files:
-                konten.append({"tipe": "image", "nama": g.name, "data": g.read()})
-            for v in video_files:
-                konten.append({"tipe": "video", "nama": v.name, "data": v.read()})
-            for d in dokumen_files:
-                konten.append({"tipe": "file", "nama": d.name, "data": d.read()})
-
+            for tipe in urutan:
+                if tipe == "Teks" and teks_materi.strip():
+                    konten.append({"tipe": "text", "isi": teks_materi})
+                
+                elif tipe == "Gambar":
+                    for g in gambar_files:
+                        konten.append({"tipe": "image", "nama": g.name, "data": g.read()})
+                
+                elif tipe == "Video":
+                    for v in video_files:
+                        konten.append({"tipe": "video", "nama": v.name, "data": v.read()})
+                
+                elif tipe == "YouTube" and youtube_link.strip():
+                    konten.append({"tipe": "youtube", "link": youtube_link.strip()})
+                
+                elif tipe == "Dokumen":
+                    for d in dokumen_files:
+                        konten.append({"tipe": "file", "nama": d.name, "data": d.read()})
+                        
             if not konten:
-                st.warning("Tambahkan minimal satu konten (teks, gambar, video, atau dokumen).")
+                st.warning("Tambahkan minimal satu konten (teks, gambar, video, YouTube, atau dokumen).")
             else:
                 st.session_state.kelas_data[kode]["materi"].append({
                     "judul": judul,
@@ -201,6 +220,15 @@ def halaman_kelas():
                             st.image(item["data"], caption=item["nama"], use_container_width=True)
                         elif item["tipe"] == "video":
                             st.video(item["data"])
+                        elif item["tipe"] == "youtube":
+                            yt_link = item["link"].replace("watch?v=", "embed/").replace("youtu.be/", "youtube.com/embed/")
+                            st.markdown(
+                                f"""
+                                <iframe width="100%" height="400" src="{yt_link}" 
+                                frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                                allowfullscreen></iframe>
+                                """, unsafe_allow_html=True
+                            )
                         elif item["tipe"] == "file":
                             st.download_button(
                                 label=f"📄 Unduh {item['nama']}",
@@ -601,6 +629,7 @@ if not st.session_state.logged_in:
 else:
     main_app()
  
+
 
 
 
