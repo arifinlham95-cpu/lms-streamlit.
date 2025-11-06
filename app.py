@@ -39,6 +39,13 @@ def load_data():
 # ----------------------------------
 st.set_page_config(page_title="COOK LMS", layout="wide")
 
+# 1️⃣ Load data dari file saat aplikasi mulai
+load_data()
+
+# 2️⃣ Inisialisasi session state jika belum ada
+if "logged_in" not in st.session_state:
+    st.session_state.logged_in = False
+
 # Inisialisasi session state
 if "logged_in" not in st.session_state:
     st.session_state.logged_in = False
@@ -105,6 +112,9 @@ def login():
                     st.success(f"Akun {role_reg} berhasil dibuat! Silakan login.")
                     st.info(f"Gunakan kata sandi: **{pass_reg}** untuk login.")
                     st.rerun()
+                    if st.button("Daftar")
+                    save_data()  # <---- tambahkan ini
+                    st.success(f"Akun {role_reg} berhasil dibuat!")
 
 # ----------------------------------
 # HALAMAN KELAS
@@ -129,6 +139,7 @@ def halaman_kelas():
                     "materi": [],
                     "anggota": []
                 }
+                 save_data()  # <---- tambahkan ini
                 st.success(f"Kelas '{nama_kelas}' berhasil dibuat!")
 
         st.divider()
@@ -552,6 +563,7 @@ if not st.session_state.logged_in:
 else:
     main_app()
  
+
 
 
 
