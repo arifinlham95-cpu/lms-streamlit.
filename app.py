@@ -134,14 +134,14 @@ def halaman_kelas():
             elif kode_kelas in st.session_state.kelas_data:
                 st.error("Kode kelas sudah digunakan.")
             else:
-    st.session_state.kelas_data[kode_kelas] = {
-        "nama": nama_kelas,
-        "guru": st.session_state.username,
-        "materi": [],
-        "anggota": []
-    }
-    save_data()  # ✅ sudah sejajar dengan baris di atasnya
-    st.success(f"Kelas '{nama_kelas}' berhasil dibuat!")
+                st.session_state.kelas_data[kode_kelas] = {
+                    "nama": nama_kelas,
+                    "guru": st.session_state.username,
+                    "materi": [],
+                    "anggota": []
+                }
+                save_data()  # simpan data setelah membuat kelas
+                st.success(f"Kelas '{nama_kelas}' berhasil dibuat!")
 
         st.divider()
         st.subheader("📚 Daftar Kelas Anda")
@@ -564,6 +564,7 @@ if not st.session_state.logged_in:
 else:
     main_app()
  
+
 
 
 
