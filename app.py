@@ -155,25 +155,62 @@ def halaman_kelas():
                     st.markdown(f"👩‍🏫 Guru: **{data['guru']}**")
                     st.markdown(f"👨‍🎓 Jumlah siswa: **{len(data['anggota'])}**")
 
-                    st.markdown("### ✏️ Tambah Materi")
+                    st.markdown("### ✏️ Tambah Materi (Teks, Gambar, Video, Dokumen)")
                     with st.form(f"form_materi_{kode}"):
                         judul = st.text_input("Judul Materi", key=f"judul_{kode}")
-                        isi = st.text_area("Isi Materi")
+                        teks_materi = st.text_area("Tambahkan teks materi (opsional)", key=f"teks_{kode}")
+                        gambar_files = st.file_uploader("Upload Gambar (opsional, bisa lebih dari 1)", type=["jpg", "jpeg", "png"], accept_multiple_files=True, key=f"gambar_{kode}")
+                        video_files = st.file_uploader("Upload Video (opsional, bisa lebih dari 1)", type=["mp4", "mov"], accept_multiple_files=True, key=f"video_{kode}")
+                        dokumen_files = st.file_uploader("Upload Dokumen (opsional, bisa lebih dari 1)", type=["pdf", "docx", "pptx"], accept_multiple_files=True, key=f"dokumen_{kode}")
                         submit = st.form_submit_button("📥 Simpan Materi")
 
-                        if submit:
-                            if not judul.strip() or not isi.strip():
-                                st.warning("Isi semua kolom.")
-                            else:
-                                st.session_state.kelas_data[kode]["materi"].append({"judul": judul, "isi": isi})
-                                st.success("Materi berhasil disimpan!")
-                                st.rerun()
+    if submit:
+        if not judul.strip():
+            st.warning("Isi judul materi terlebih dahulu.")
+        else:
+            konten = []
+            if teks_materi.strip():
+                konten.append({"tipe": "text", "isi": teks_materi})
+
+            for g in gambar_files:
+                konten.append({"tipe": "image", "nama": g.name, "data": g.read()})
+            for v in video_files:
+                konten.append({"tipe": "video", "nama": v.name, "data": v.read()})
+            for d in dokumen_files:
+                konten.append({"tipe": "file", "nama": d.name, "data": d.read()})
+
+            if not konten:
+                st.warning("Tambahkan minimal satu konten (teks, gambar, video, atau dokumen).")
+            else:
+                st.session_state.kelas_data[kode]["materi"].append({
+                    "judul": judul,
+                    "konten": konten
+                })
+                save_data()
+                st.success("Materi berhasil disimpan!")
+                st.rerun()
+
 
                     if data["materi"]:
                         st.markdown("### 📄 Materi di Kelas Ini")
                         for i, m in enumerate(data["materi"]):
                             st.write(f"**{i+1}. {m['judul']}**")
-                            st.info(m["isi"])
+                            for item in m.get("konten", []):
+                                if item["tipe"] == "text":
+                                    st.markdown(item["isi"])
+                                elif item["tipe"] == "image":
+                                    st.image(item["data"], caption=item["nama"], use_container_width=True)
+                                elif item["tipe"] == "video":
+                                    st.video(item["data"])
+                                elif item["tipe"] == "file":
+                                    st.download_button(
+                                        label=f"📄 Unduh {item['nama']}",
+                                        data=item["data"],
+                                        file_name=item["nama"],
+                                        mime="application/octet-stream",
+                                        key=f"unduh_{kode}_{i}_{item['nama']}"
+                                    )
+
                             if st.button("🗑️ Hapus Materi", key=f"hapus_{kode}_{i}"):
                                 st.session_state.kelas_data[kode]["materi"].pop(i)
                                 st.success("Materi dihapus.")
@@ -564,6 +601,7 @@ if not st.session_state.logged_in:
 else:
     main_app()
  
+
 
 
 
