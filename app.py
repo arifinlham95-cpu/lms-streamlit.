@@ -112,9 +112,24 @@ def login():
                     st.success(f"Akun {role_reg} berhasil dibuat! Silakan login.")
                     st.info(f"Gunakan kata sandi: **{pass_reg}** untuk login.")
                     st.rerun()
-                    if st.button("Daftar")
-                    save_data()  # <---- tambahkan ini
-                    st.success(f"Akun {role_reg} berhasil dibuat!")
+                    with tab2:
+    role_reg = st.selectbox("Daftar sebagai:", ["Guru", "Siswa"], key="reg_role")
+    nama_reg = st.text_input("Nama Lengkap", key="reg_name")
+    pass_reg = st.text_input("Buat Kata Sandi", type="password", key="reg_pass")
+
+    if st.button("Daftar"):
+        if nama_reg == "" or pass_reg == "":
+            st.warning("Isi semua kolom terlebih dahulu.")
+        else:
+            if pass_reg in st.session_state.users[role_reg.lower()]:
+                st.error("Kata sandi ini sudah digunakan.")
+            else:
+                st.session_state.users[role_reg.lower()][pass_reg] = nama_reg
+                save_data()  # simpan data baru
+                st.success(f"Akun {role_reg} berhasil dibuat! Silakan login.")
+                st.info(f"Gunakan kata sandi: **{pass_reg}** untuk login.")
+                st.rerun()
+
 
 # ----------------------------------
 # HALAMAN KELAS
@@ -563,6 +578,7 @@ if not st.session_state.logged_in:
 else:
     main_app()
  
+
 
 
 
