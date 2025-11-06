@@ -24,14 +24,43 @@ def save_data():
 
 def load_data():
     if os.path.exists(DATA_FILE):
-        with open(DATA_FILE, "r") as f:
-            data = json.load(f)
-            st.session_state.users = data.get("users", {})
-            st.session_state.kelas_data = data.get("kelas_data", {})
-            st.session_state.tugas_data = data.get("tugas_data", {})
-            st.session_state.test_data = data.get("test_data", {})
-            st.session_state.chat_data = data.get("chat_data", {})
-            st.session_state.absen_data = data.get("absen_data", {})
+        try:
+            with open(DATA_FILE, "r") as f:
+                content = f.read().strip()
+                if not content:
+                    raise ValueError("File kosong")
+                data = json.loads(content)
+        except (json.JSONDecodeError, ValueError):
+            st.warning("⚠️ File data rusak atau kosong, membuat file baru.")
+            data = {
+                "users": {"guru": {"guru123": "Guru Default"}, "siswa": {"siswa123": "Siswa Default"}},
+                "kelas_data": {},
+                "tugas_data": {},
+                "test_data": {},
+                "chat_data": {},
+                "absen_data": {}
+            }
+            with open(DATA_FILE, "w") as f:
+                json.dump(data, f, indent=4)
+        st.session_state.users = data.get("users", {})
+        st.session_state.kelas_data = data.get("kelas_data", {})
+        st.session_state.tugas_data = data.get("tugas_data", {})
+        st.session_state.test_data = data.get("test_data", {})
+        st.session_state.chat_data = data.get("chat_data", {})
+        st.session_state.absen_data = data.get("absen_data", {})
+    else:
+        # Buat file baru kalau belum ada
+        data = {
+            "users": {"guru": {"guru123": "Guru Default"}, "siswa": {"siswa123": "Siswa Default"}},
+            "kelas_data": {},
+            "tugas_data": {},
+            "test_data": {},
+            "chat_data": {},
+            "absen_data": {}
+        }
+        with open(DATA_FILE, "w") as f:
+            json.dump(data, f, indent=4)
+        st.session_state.update(data)
 
 
 # ----------------------------------
@@ -629,6 +658,7 @@ if not st.session_state.logged_in:
 else:
     main_app()
  
+
 
 
 
