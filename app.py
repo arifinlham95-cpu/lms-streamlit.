@@ -292,6 +292,68 @@ def halaman_kelas():
             else:
                 st.info("Belum ada materi di kelas ini.")
 
+            # --- Form Edit Materi ---
+            if "editing_materi" in st.session_state:
+                kode_edit, idx_edit = st.session_state.editing_materi
+                materi_edit = st.session_state.kelas_data[kode_edit]["materi"][idx_edit]
+
+                st.markdown("---")
+                st.subheader(f"✏️ Edit Materi: {materi_edit['judul']}")
+
+                with st.form("form_edit_materi"):
+                    new_title = st.text_input("Judul Materi", value=materi_edit["judul"])
+                    new_text = ""
+                    for item in materi_edit["konten"]:
+                        if item["tipe"] == "text":
+                            new_text = item["isi"]
+                            break
+                    new_text = st.text_area("Teks Materi (opsional)", value=new_text)
+
+                    new_yt = ""
+                    for item in materi_edit["konten"]:
+                        if item["tipe"] == "youtube":
+                            new_yt = item["link"]
+                            break
+                    new_yt = st.text_input("Link YouTube (opsional)", value=new_yt)
+
+                    st.markdown("Upload ulang file/gambar/video/dokumen (opsional)")
+                    new_images = st.file_uploader("Gambar", type=["jpg", "jpeg", "png"], accept_multiple_files=True)
+                    new_videos = st.file_uploader("Video", type=["mp4", "mov"], accept_multiple_files=True)
+                    new_docs = st.file_uploader("Dokumen", type=["pdf", "docx", "pptx"], accept_multiple_files=True)
+
+                    submit_edit = st.form_submit_button("💾 Simpan Perubahan")
+                    cancel_edit = st.form_submit_button("❌ Batal")
+
+                    if submit_edit:
+                        new_konten = []
+                        if new_text.strip():
+                            new_konten.append({"tipe": "text", "isi": new_text})
+                        if new_images:
+                            for g in new_images:
+                                new_konten.append({"tipe": "image", "nama": g.name, "data": g.read()})
+                        if new_videos:
+                            for v in new_videos:
+                                new_konten.append({"tipe": "video", "nama": v.name, "data": v.read()})
+                        if new_yt.strip():
+                            new_konten.append({"tipe": "youtube", "link": new_yt})
+                        if new_docs:
+                            for d in new_docs:
+                                new_konten.append({"tipe": "file", "nama": d.name, "data": d.read()})
+
+                        materi_edit["judul"] = new_title
+                        if new_konten:
+                            materi_edit["konten"] = new_konten
+
+                        save_data()
+                        st.success("Materi berhasil diperbarui!")
+                        del st.session_state.editing_materi
+                        st.rerun()
+
+                    if cancel_edit:
+                        del st.session_state.editing_materi
+                        st.info("Edit materi dibatalkan.")
+                        st.rerun()
+
     elif role == "siswa":
         st.subheader("📘 Bergabung ke Kelas")
         kode_gabung = st.text_input("Masukkan Kode Kelas")
@@ -702,6 +764,7 @@ if not st.session_state.logged_in:
 else:
     main_app()
  
+
 
 
 
