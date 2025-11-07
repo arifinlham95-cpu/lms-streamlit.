@@ -151,6 +151,17 @@ def login():
 # ----------------------------------
 def halaman_kelas():
     st.title("👥 Kelas dan Materi")
+    submit = False
+    judul = ""
+    teks_materi = ""
+    gambar_files = []
+    video_files = []
+    youtube_link = ""
+    dokumen_files = []
+    urutan = []
+    kode = ""
+    data = {}
+    st.title("👥 Kelas dan Materi")
     role = st.session_state.role
 
     if role == "guru":
@@ -658,6 +669,7 @@ if not st.session_state.logged_in:
 else:
     main_app()
  
+
 
 
 
