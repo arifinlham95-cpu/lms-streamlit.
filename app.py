@@ -277,11 +277,17 @@ def halaman_kelas():
                                 mime="application/octet-stream",
                                 key=f"unduh_{kode}_{i}_{item['nama']}"
                             )
-                        
-                    if st.button("🗑️ Hapus Materi", key=f"hapus_{kode}_{i}"):
-                        st.session_state.kelas_data[kode]["materi"].pop(i)
-                        st.success("Materi dihapus.")
-                        st.rerun()
+                    
+                    col1, col2 = st.columns(2)
+                    with col1:
+                        if st.button("✏️ Edit Materi", key=f"edit_{kode}_{i}"):
+                            st.session_state.editing_materi = (kode, i)
+                            st.rerun()
+                    with col2:
+                        if st.button("🗑️ Hapus Materi", key=f"hapus_{kode}_{i}"):
+                            st.session_state.kelas_data[kode]["materi"].pop(i)
+                            st.success("Materi dihapus.")
+                            st.rerun()
                     
             else:
                 st.info("Belum ada materi di kelas ini.")
@@ -696,6 +702,7 @@ if not st.session_state.logged_in:
 else:
     main_app()
  
+
 
 
 
