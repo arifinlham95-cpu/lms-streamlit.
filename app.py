@@ -315,7 +315,34 @@ def halaman_kelas():
                     else:
                         for m in data["materi"]:
                             st.markdown(f"### 📄 {m['judul']}")
-                            st.info(m["isi"])
+                            if "konten" in m:
+                                for item in m["konten"]:
+                                    if item["tipe"] == "text":
+                                        st.markdown(item["isi"])
+                                    elif item["tipe"] == "image":
+                                        st.image(item["data"], caption=item["nama"], use_container_width=True)
+                                    elif item["tipe"] == "video":
+                                        st.video(item["data"])
+                                    elif item["tipe"] == "youtube":
+                                        yt_link = item["link"].replace("watch?v=", "embed/").replace("youtu.be/", "youtube.com/embed/")
+                                        st.markdown(
+                                            f"""
+                                            <iframe width="100%" height="400" src="{yt_link}"
+                                            frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                                            allowfullscreen></iframe>
+                                            """, unsafe_allow_html=True
+                                        )
+                                    elif item["tipe"] == "file":
+                                        st.download_button(
+                                            label=f"📄 Unduh {item['nama']}",
+                                            data=item["data"],
+                                            file_name=item["nama"],
+                                            mime="application/octet-stream",
+                                            key=f"unduh_{item['nama']}"
+                                        )
+                           else:
+                               st.info("Materi ini belum memiliki konten.")
+
 
 # ----------------------------------
 # HALAMAN TUGAS
@@ -669,6 +696,7 @@ if not st.session_state.logged_in:
 else:
     main_app()
  
+
 
 
 
