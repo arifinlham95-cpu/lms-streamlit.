@@ -340,8 +340,8 @@ def halaman_kelas():
                                             mime="application/octet-stream",
                                             key=f"unduh_{item['nama']}"
                                         )
-                           else:
-                               st.info("Materi ini belum memiliki konten.")
+                            else:
+                                st.info("Materi ini belum memiliki konten.")
 
 
 # ----------------------------------
@@ -696,6 +696,7 @@ if not st.session_state.logged_in:
 else:
     main_app()
  
+
 
 
 
