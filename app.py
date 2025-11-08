@@ -372,6 +372,13 @@ def halaman_kelas():
                         st.rerun()
 
     elif role == "siswa":
+    st.download_button(
+    label=f"📄 Unduh {item['nama']}",
+    data=item["data"],
+    file_name=item["nama"],
+    mime="application/octet-stream",
+    key=f"unduh_{kode}_{i}_{item['nama']}"
+    
         st.subheader("📘 Bergabung ke Kelas")
         kode_gabung = st.text_input("Masukkan Kode Kelas")
         if st.button("Gabung"):
@@ -423,7 +430,7 @@ def halaman_kelas():
                                             data=item["data"],
                                             file_name=item["nama"],
                                             mime="application/octet-stream",
-                                            key=f"unduh_{item['nama']}"
+                                            key=f"unduh_{kode}_{m['judul']}_{item['nama']}"
                                         )
                             else:
                                 st.info("Materi ini belum memiliki konten.")
@@ -781,6 +788,7 @@ if not st.session_state.logged_in:
 else:
     main_app()
  
+
 
 
 
