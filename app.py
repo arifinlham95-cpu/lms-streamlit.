@@ -3,6 +3,7 @@ import pandas as pd
 import datetime
 import json
 import os
+import base64
 
 # ----------------------------------
 # UTILITAS PENYIMPANAN DATA
@@ -10,6 +11,20 @@ import os
 
 DATA_FILE = "lms_data.json"
 
+def safe_serialize(obj):
+    """Pastikan semua data bisa disimpan dalam JSON"""
+    if isinstance(obj, bytes):
+        # ubah bytes (file, gambar, video) ke base64 string
+        return base64.b64encode(obj).decode('utf-8')
+    elif isinstance(obj, (datetime.datetime, datetime.date)):
+        return obj.isoformat()
+    elif isinstance(obj, dict):
+        return {k: safe_serialize(v) for k, v in obj.items()}
+    elif isinstance(obj, list):
+        return [safe_serialize(v) for v in obj]
+    else:
+        return obj
+        
 def save_data():
     data = {
         "users": st.session_state.users,
@@ -19,6 +34,9 @@ def save_data():
         "chat_data": st.session_state.chat_data,
         "absen_data": st.session_state.get("absen_data", {})
     }
+    with open(DATA_FILE, "w") as f:
+        json.dump(data, f, indent=4)
+    data = safe_serialize(data)
     with open(DATA_FILE, "w") as f:
         json.dump(data, f, indent=4)
 
@@ -764,6 +782,7 @@ if not st.session_state.logged_in:
 else:
     main_app()
  
+
 
 
 
