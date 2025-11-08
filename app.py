@@ -34,8 +34,7 @@ def save_data():
         "chat_data": st.session_state.chat_data,
         "absen_data": st.session_state.get("absen_data", {})
     }
-    with open(DATA_FILE, "w") as f:
-        json.dump(data, f, indent=4)
+
     data = safe_serialize(data)
     with open(DATA_FILE, "w") as f:
         json.dump(data, f, indent=4)
@@ -782,6 +781,7 @@ if not st.session_state.logged_in:
 else:
     main_app()
  
+
 
 
 
