@@ -372,19 +372,6 @@ def halaman_kelas():
                         st.rerun()
 
     elif role == "siswa":
-    st.subheader("📘 Bergabung ke Kelas")
-    kode_gabung = st.text_input("Masukkan Kode Kelas")
-    if st.button("Gabung"):
-        if kode_gabung not in st.session_state.kelas_data:
-            st.error("Kode kelas tidak ditemukan.")
-        else:
-            kelas = st.session_state.kelas_data[kode_gabung]
-            if st.session_state.username in kelas["anggota"]:
-                st.info("Anda sudah tergabung di kelas ini.")
-            else:
-                kelas["anggota"].append(st.session_state.username)
-                st.success(f"Berhasil bergabung ke kelas {kelas['nama']}!")
-    
         st.subheader("📘 Bergabung ke Kelas")
         kode_gabung = st.text_input("Masukkan Kode Kelas")
         if st.button("Gabung"):
@@ -400,7 +387,11 @@ def halaman_kelas():
 
         st.divider()
         st.subheader("📚 Kelas Saya")
-        kelas_saya = {k: v for k, v in st.session_state.kelas_data.items() if st.session_state.username in v["anggota"]}
+        kelas_saya = {
+            k: v
+            for k, v in st.session_state.kelas_data.items()
+            if st.session_state.username in v["anggota"]
+        }
 
         if not kelas_saya:
             st.info("Belum bergabung di kelas mana pun.")
@@ -794,6 +785,7 @@ if not st.session_state.logged_in:
 else:
     main_app()
  
+
 
 
 
