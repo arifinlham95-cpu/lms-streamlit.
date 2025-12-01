@@ -4,6 +4,7 @@ import datetime
 import json
 import os
 import base64
+import uuid
 from typing import Any
 
 DATA_FILE = "lms_data.json"
@@ -497,11 +498,12 @@ def halaman_kelas():
                                             data = base64.b64decode(data)
                                         st.download_button(
                                             label=f"📄 Unduh {item['nama']}",
-                                            data=data,
+                                            data=item["data"],
                                             file_name=item["nama"],
                                             mime="application/octet-stream",
-                                            key=f"unduh_siswa_{kode}_{m['judul']}_{item['nama']}"
+                                            key=f"unduh_{kode}_{i}_{item['nama']}_{uuid.uuid4()}"
                                         )
+
 
                             else:
                                 st.info("Materi ini belum memiliki konten.")
@@ -859,6 +861,7 @@ if not st.session_state.logged_in:
 else:
     main_app()
  
+
 
 
 
