@@ -498,17 +498,17 @@ def halaman_kelas():
                                             unsafe_allow_html=True
                                         )
 
-            elif item["tipe"] == "file":
-                data_file = item["data"]
-                if isinstance(data_file, str):
-                    data_file = base64.b64decode(data_file)
-                st.download_button(
-                    label=f"📄 Unduh {item['nama']}",
-                    data=data_file,
-                    file_name=item["nama"],
-                    mime="application/octet-stream",
-                    key=f"unduh_{kode}_{i}_{j}_{uuid.uuid4()}"
-                )
+                                    elif item["tipe"] == "file":
+                                        data_file = item["data"]
+                                        if isinstance(data_file, str):
+                                            data_file = base64.b64decode(data_file)
+                                        st.download_button(
+                                            label=f"📄 Unduh {item['nama']}",
+                                            data=data_file,
+                                            file_name=item["nama"],
+                                            mime="application/octet-stream",
+                                            key=f"unduh_{kode}_{i}_{j}_{uuid.uuid4()}"
+                                        )
 
 
                             else:
@@ -867,6 +867,7 @@ if not st.session_state.logged_in:
 else:
     main_app()
  
+
 
 
 
