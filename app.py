@@ -57,16 +57,41 @@ def save_data():
 
 
 def load_data():
+    # Pastikan hanya ada 1 definisi load_data di file
     if os.path.exists(DATA_FILE):
         try:
             with open(DATA_FILE, "r") as f:
-                data = safe_deserialize(json.load(f))
-        except Exception:
-            st.warning("⚠️ Data rusak, reset.")
-            data = {}
+                content = f.read().strip()
+                if not content:
+                    raise ValueError("File kosong")
+                # Baca JSON lalu deserialize ke bytes jika perlu
+                raw = json.loads(content)
+                data = safe_deserialize(raw)
+        except (json.JSONDecodeError, ValueError, Exception) as e:
+            st.warning("⚠️ File data rusak atau kosong, membuat file baru.")
+            data = {
+                "users": {"guru": {"guru123": "Guru Default"}, "siswa": {"siswa123": "Siswa Default"}},
+                "kelas_data": {},
+                "tugas_data": {},
+                "test_data": {},
+                "chat_data": {},
+                "absen_data": {}
+            }
+            with open(DATA_FILE, "w") as f:
+                json.dump(safe_serialize(data), f, indent=4)
     else:
-        data = {}
+        data = {
+            "users": {"guru": {"guru123": "Guru Default"}, "siswa": {"siswa123": "Siswa Default"}},
+            "kelas_data": {},
+            "tugas_data": {},
+            "test_data": {},
+            "chat_data": {},
+            "absen_data": {}
+        }
+        with open(DATA_FILE, "w") as f:
+            json.dump(safe_serialize(data), f, indent=4)
 
+    # Update session_state (gunakan defaults bila tidak ada)
     st.session_state.users = data.get("users", {"guru": {"guru123": "Guru Default"}, "siswa": {"siswa123": "Siswa Default"}})
     st.session_state.kelas_data = data.get("kelas_data", {})
     st.session_state.tugas_data = data.get("tugas_data", {})
@@ -834,6 +859,7 @@ if not st.session_state.logged_in:
 else:
     main_app()
  
+
 
 
 
