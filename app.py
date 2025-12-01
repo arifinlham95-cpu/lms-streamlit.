@@ -4,27 +4,44 @@ import datetime
 import json
 import os
 import base64
-
-# ----------------------------------
-# UTILITAS PENYIMPANAN DATA
-# ----------------------------------
+from typing import Any
 
 DATA_FILE = "lms_data.json"
 
-def safe_serialize(obj):
-    """Pastikan semua data bisa disimpan dalam JSON"""
+# ----------------------------------
+# Convert data before saving
+# ----------------------------------
+def safe_serialize(obj: Any):
     if isinstance(obj, bytes):
-        # ubah bytes (file, gambar, video) ke base64 string
-        return base64.b64encode(obj).decode('utf-8')
+        return {"__bytes__": True, "data": base64.b64encode(obj).decode("utf-8")}
+
     elif isinstance(obj, (datetime.datetime, datetime.date)):
         return obj.isoformat()
+
     elif isinstance(obj, dict):
         return {k: safe_serialize(v) for k, v in obj.items()}
+
     elif isinstance(obj, list):
         return [safe_serialize(v) for v in obj]
-    else:
-        return obj
-        
+
+    return obj
+
+
+# ----------------------------------
+# Convert back to bytes when loading
+# ----------------------------------
+def safe_deserialize(obj: Any):
+    if isinstance(obj, dict):
+        if "__bytes__" in obj:
+            return base64.b64decode(obj["data"])
+        return {k: safe_deserialize(v) for k, v in obj.items()}
+
+    elif isinstance(obj, list):
+        return [safe_deserialize(v) for v in obj]
+
+    return obj
+
+
 def save_data():
     data = {
         "users": st.session_state.users,
@@ -34,6 +51,28 @@ def save_data():
         "chat_data": st.session_state.chat_data,
         "absen_data": st.session_state.get("absen_data", {})
     }
+    data = safe_serialize(data)
+    with open(DATA_FILE, "w") as f:
+        json.dump(data, f, indent=4)
+
+
+def load_data():
+    if os.path.exists(DATA_FILE):
+        try:
+            with open(DATA_FILE, "r") as f:
+                data = safe_deserialize(json.load(f))
+        except Exception:
+            st.warning("⚠️ Data rusak, reset.")
+            data = {}
+    else:
+        data = {}
+
+    st.session_state.users = data.get("users", {"guru": {"guru123": "Guru Default"}, "siswa": {"siswa123": "Siswa Default"}})
+    st.session_state.kelas_data = data.get("kelas_data", {})
+    st.session_state.tugas_data = data.get("tugas_data", {})
+    st.session_state.test_data = data.get("test_data", {})
+    st.session_state.chat_data = data.get("chat_data", {})
+    st.session_state.absen_data = data.get("absen_data", {})
 
     data = safe_serialize(data)
     with open(DATA_FILE, "w") as f:
@@ -785,6 +824,7 @@ if not st.session_state.logged_in:
 else:
     main_app()
  
+
 
 
 
