@@ -467,22 +467,26 @@ def halaman_kelas():
                     if not data["materi"]:
                         st.warning("Belum ada materi di kelas ini.")
                     else:
-                        for m in data["materi"]:
+                        for i, m in enumerate(data["materi"]):
                             st.markdown(f"### 📄 {m['judul']}")
+    
                             if "konten" in m:
-                                for item in m["konten"]:
+                                for j, item in enumerate(m["konten"]):
                                     if item["tipe"] == "text":
                                         st.markdown(item["isi"])
+
                                     elif item["tipe"] == "image":
-                                        data = item["data"]
-                                        if isinstance(data, str):
-                                            data = base64.b64decode(data)  # decode data string ke bytes
-                                        st.image(data, caption=item["nama"], use_container_width=True)
+                                        data_file = item["data"]
+                                        if isinstance(data_file, str):
+                                            data_file = base64.b64decode(data_file)
+                                        st.image(data_file, caption=item["nama"], use_container_width=True)
+
                                     elif item["tipe"] == "video":
-                                        data = item["data"]
-                                        if isinstance(data, str):
-                                            data = base64.b64decode(data)
-                                        st.video(data)
+                                        data_file = item["data"]
+                                        if isinstance(data_file, str):
+                                            data_file = base64.b64decode(data_file)
+                                        st.video(data_file)
+
                                     elif item["tipe"] == "youtube":
                                         yt_link = item["link"].replace("watch?v=", "embed/").replace("youtu.be/", "youtube.com/embed/")
                                         st.markdown(
@@ -490,19 +494,21 @@ def halaman_kelas():
                                             <iframe width="100%" height="400" src="{yt_link}"
                                             frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
                                             allowfullscreen></iframe>
-                                            """, unsafe_allow_html=True
+                                            """,
+                                            unsafe_allow_html=True
                                         )
-                                    elif item["tipe"] == "file":
-                                        data = item["data"]
-                                        if isinstance(data, str):
-                                            data = base64.b64decode(data)
-                                        st.download_button(
-                                            label=f"📄 Unduh {item['nama']}",
-                                            data=item["data"],
-                                            file_name=item["nama"],
-                                            mime="application/octet-stream",
-                                            key=f"unduh_{kode}_{i}_{item['nama']}_{uuid.uuid4()}"
-                                        )
+
+            elif item["tipe"] == "file":
+                data_file = item["data"]
+                if isinstance(data_file, str):
+                    data_file = base64.b64decode(data_file)
+                st.download_button(
+                    label=f"📄 Unduh {item['nama']}",
+                    data=data_file,
+                    file_name=item["nama"],
+                    mime="application/octet-stream",
+                    key=f"unduh_{kode}_{i}_{j}_{uuid.uuid4()}"
+                )
 
 
                             else:
@@ -861,6 +867,7 @@ if not st.session_state.logged_in:
 else:
     main_app()
  
+
 
 
 
