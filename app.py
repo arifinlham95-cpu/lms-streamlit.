@@ -448,9 +448,15 @@ def halaman_kelas():
                                     if item["tipe"] == "text":
                                         st.markdown(item["isi"])
                                     elif item["tipe"] == "image":
-                                        st.image(item["data"], caption=item["nama"], use_container_width=True)
+                                        data = item["data"]
+                                        if isinstance(data, str):
+                                            data = base64.b64decode(data)  # decode data string ke bytes
+                                        st.image(data, caption=item["nama"], use_container_width=True)
                                     elif item["tipe"] == "video":
-                                        st.video(item["data"])
+                                        data = item["data"]
+                                        if isinstance(data, str):
+                                            data = base64.b64decode(data)
+                                        st.video(data)
                                     elif item["tipe"] == "youtube":
                                         yt_link = item["link"].replace("watch?v=", "embed/").replace("youtu.be/", "youtube.com/embed/")
                                         st.markdown(
@@ -461,12 +467,14 @@ def halaman_kelas():
                                             """, unsafe_allow_html=True
                                         )
                                     elif item["tipe"] == "file":
+                                        data = item["data"]
+                                        if isinstance(data, str):
+                                            data = base64.b64decode(data)
                                         st.download_button(
                                             label=f"📄 Unduh {item['nama']}",
-                                            data=item["data"],
+                                            data=data,
                                             file_name=item["nama"],
-                                            mime="application/octet-stream",
-                                            key=f"unduh_{kode}_{m['judul']}_{item['nama']}"
+                                            mime="application/octet-stream"
                                         )
                             else:
                                 st.info("Materi ini belum memiliki konten.")
@@ -824,6 +832,7 @@ if not st.session_state.logged_in:
 else:
     main_app()
  
+
 
 
 
