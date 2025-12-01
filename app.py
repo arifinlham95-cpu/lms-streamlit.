@@ -474,8 +474,10 @@ def halaman_kelas():
                                             label=f"📄 Unduh {item['nama']}",
                                             data=data,
                                             file_name=item["nama"],
-                                            mime="application/octet-stream"
+                                            mime="application/octet-stream",
+                                            key=f"unduh_siswa_{kode}_{m['judul']}_{item['nama']}"
                                         )
+
                             else:
                                 st.info("Materi ini belum memiliki konten.")
 
@@ -832,6 +834,7 @@ if not st.session_state.logged_in:
 else:
     main_app()
  
+
 
 
 
