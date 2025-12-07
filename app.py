@@ -440,15 +440,21 @@ def halaman_kelas():
         st.subheader("📘 Bergabung ke Kelas")
         kode_gabung = st.text_input("Masukkan Kode Kelas")
         if st.button("Gabung"):
-            if kode_gabung not in st.session_state.kelas_data:
-                st.error("Kode kelas tidak ditemukan.")
-            else:
-                kelas = st.session_state.kelas_data[kode_gabung]
-                if st.session_state.username in kelas["anggota"]:
-                    st.info("Anda sudah tergabung di kelas ini.")
-                else:
-                    kelas["anggota"].append(st.session_state.username)
-                    st.success(f"Berhasil bergabung ke kelas {kelas['nama']}!")
+         if kode_gabung not in st.session_state.kelas_data:
+             st.error("Kode kelas tidak ditemukan.")
+        else:
+             kelas = st.session_state.kelas_data[kode_gabung]
+             if st.session_state.username in kelas["anggota"]:
+                 st.info("Anda sudah tergabung di kelas ini.")
+             else:
+            # Tambahkan siswa ke kelas
+                 kelas["anggota"].append(st.session_state.username)
+
+            # Simpan dan perbarui UI otomatis
+                 save_data()
+                 st.success(f"Berhasil bergabung ke kelas {kelas['nama']}!")
+                 st.rerun()
+
 
         st.divider()
         st.subheader("📚 Kelas Saya")
@@ -867,6 +873,7 @@ if not st.session_state.logged_in:
 else:
     main_app()
  
+
 
 
 
