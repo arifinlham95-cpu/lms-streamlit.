@@ -307,18 +307,31 @@ def halaman_kelas():
                 
                 elif tipe == "Gambar":
                     for g in gambar_files:
-                        konten.append({"tipe": "image", "nama": g.name, "data": g.read()})
-                
+                        konten.append({
+                            "tipe": "image",
+                            "nama": g.name,
+                            "data": base64.b64encode(g.read()).decode("utf-8")
+                        })
+                        
                 elif tipe == "Video":
                     for v in video_files:
-                        konten.append({"tipe": "video", "nama": v.name, "data": v.read()})
+                        konten.append({
+                            "tipe": "video",
+                            "nama": v.name,
+                            "data": base64.b64encode(v.read()).decode("utf-8")
+                        })
+
                 
                 elif tipe == "YouTube" and youtube_link.strip():
                     konten.append({"tipe": "youtube", "link": youtube_link.strip()})
                 
                 elif tipe == "Dokumen":
                     for d in dokumen_files:
-                        konten.append({"tipe": "file", "nama": d.name, "data": d.read()})
+                        konten.append({
+                            "tipe": "file",
+                            "nama": d.name,
+                            "data": base64.b64encode(d.read()).decode("utf-8")
+                        })
                         
             if not konten:
                 st.warning("Tambahkan minimal satu konten (teks, gambar, video, YouTube, atau dokumen).")
@@ -875,6 +888,7 @@ if not st.session_state.logged_in:
 else:
     main_app()
  
+
 
 
 
